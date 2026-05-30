@@ -1,0 +1,39 @@
+robot:
+  type: so100_follower
+  id: so100_rgbd_follower
+  port: /dev/ttyACM0
+  use_degrees: true
+  cameras:
+    front:
+      type: orbbec
+      serial_number_or_name: "REPLACE_WITH_FEMTO_BOLT_SERIAL"
+      fps: 30
+      width: 1280
+      height: 720
+      use_depth: true
+      depth_fps: 30
+      depth_width: 640
+      depth_height: 576
+      align_depth_to_color: true
+    wrist:
+      type: opencv
+      index_or_path: /dev/video0
+      fps: 30
+      width: 640
+      height: 480
+teleop:
+  type: so100_leader
+  id: so100_leader
+  port: /dev/ttyACM1
+dataset:
+  repo_id: YOUR_HF_USERNAME/so100_rgbd_dataset
+  fps: 30
+  single_task: Place the object precisely using the front depth camera.
+  num_episodes: 10
+  episode_time_s: 60
+  reset_time_s: 30
+  video: true
+  push_to_hub: false
+  streaming_encoding: false
+display_data: true
+display_port: 9876

@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=71.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lerobot_policy_rgbd_vla_depth"
+version = "0.1.0"
+description = "RGB-D recording helpers for LeRobot SO-100/SO-101 Orbbec data collection."
+requires-python = ">=3.12"
+dependencies = [
+    "lerobot",
+    "huggingface-hub>=1.0.0,<2.0.0",
+    "Pillow>=10.0.0,<13.0.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

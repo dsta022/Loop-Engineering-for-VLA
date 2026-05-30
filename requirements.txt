@@ -1,0 +1,18 @@
+numpy>=2.0,<2.3
+pyarrow>=14.0
+opencv-python-headless>=4.9,<4.14
+huggingface-hub>=1.0,<2.0
+hf-xet>=1.1
+Pillow>=10.0,<13.0
+
+# Optional runtime packages for the LeRobot Orbbec RGB-D capture overlay.
+# The patched LeRobot checkout should still be installed from its repo root with:
+# python -m pip install -e ".[feetech,orbbec,rgbd_vla]" -e .\examples\rgbd_vla_depth
+pyorbbecsdk2>=2.0.15,<2.1
+feetech-servo-sdk>=1.0,<2.0
+pynput>=1.7.8,<1.9
+pyserial>=3.5,<4.0
+rerun-sdk>=0.21
+av>=15.0,<16.0
+imageio[ffmpeg]>=2.34,<3.0
+jsonlines>=4.0,<5.0

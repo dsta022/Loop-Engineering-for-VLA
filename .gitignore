@@ -1,0 +1,21 @@
+﻿# Local datasets and generated LeRobot data
+*_dataset/
+determ_lerobot_rgb_depth_vla/
+
+# Local dependency/cache artifacts
+.merge_deps/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments and local configuration
+.venv/
+venv/
+.env
+.env.*
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
