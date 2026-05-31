@@ -8,7 +8,7 @@ This software project provides a LeRobot RGB/RGB-D dataset toolkit for generatin
 
 The toolkit is designed for Orbbec RGB-D collection, merging multiple same-structure LeRobot datasets into one real dataset, auditing RGB video/action/metadata quality with optional depth checks, building a cleaned copy from reviewed episode lists, and uploading the final dataset to Hugging Face.
 
-It also includes an Orbbec RGB-D data collection overlay that can be copied directly into the official Hugging Face LeRobot repository and used from the LeRobot repo root: https://github.com/huggingface/lerobot
+It also includes an Orbbec RGB-D data collection overlay that can be copied directly into the official Hugging Face LeRobot repository and used from the LeRobot repo root: https://github.com/huggingface/lerobot. A visuo-tactile data collection pipeline is also in progress, and its dataset and toolkit will be released open source when ready.
 
 ## Dataset
 
@@ -47,15 +47,19 @@ Task data collection:
 
 If the video does not render in your Markdown viewer, open [task_demo.mp4](assets/readme/task_demo.mp4) directly.
 
-Episode overview matrices:
+Aligned episode overview matrices:
 
-| Front camera, 15 sampled episodes |
+| Front camera, 9 sampled episodes |
 | --- |
 | ![Front camera episode matrix](assets/readme/front_episode_matrix.jpg) |
 
-| Wrist camera, 15 sampled episodes |
+| Wrist camera, 9 sampled episodes |
 | --- |
 | ![Wrist camera episode matrix](assets/readme/wrist_episode_matrix.jpg) |
+
+| Front depth matrix, 9 sampled episodes |
+| --- |
+| ![Front depth episode matrix](assets/readme/depth_episode_matrix.png) |
 
 ## Overview
 
