@@ -1,0 +1,24 @@
+{
+  "combine": "min",
+  "curve_from": "motion",
+  "require": 1,
+  "children": [
+    {
+      "name": "motion",
+      "spec": "semantic.motion_evaluator:create_evaluator",
+      "config": {"jerk_multiple": 8.0},
+      "weight": 1.0
+    },
+    {
+      "name": "clip",
+      "spec": "semantic.clip_alignment_evaluator:create_evaluator",
+      "config": {
+        "model_name": "ViT-B-32",
+        "pretrained": "laion2b_s34b_b79k",
+        "num_frames": 16,
+        "stage_temperature": 30.0
+      },
+      "weight": 1.0
+    }
+  ]
+}
