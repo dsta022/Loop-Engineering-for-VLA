@@ -125,10 +125,20 @@ def analyze_progress_curve(curve: Sequence[float]) -> ProgressCurveMetrics | Non
     )
 
 
-def progress_curve_findings(metrics: ProgressCurveMetrics) -> tuple[str, ...]:
-    """Review reasons implied by the shape of a progress curve."""
+def progress_curve_findings(
+    metrics: ProgressCurveMetrics, *, include_regression: bool = True
+) -> tuple[str, ...]:
+    """Review reasons implied by the shape of a progress curve.
+
+    ``include_regression`` fires the regression finding against the fixed
+    ``PROGRESS_REGRESSION_DROP`` floor. The audit passes ``False`` so the
+    regression decision is deferred to a dataset-relative threshold computed over
+    the whole population (see ``apply_progress_regression_reviews``), the same way
+    action- and state-jump outliers are decided; other callers keep the standalone
+    fixed-threshold behavior.
+    """
     findings: list[str] = []
-    if metrics.points >= 2 and metrics.max_drop >= PROGRESS_REGRESSION_DROP:
+    if include_regression and metrics.points >= 2 and metrics.max_drop >= PROGRESS_REGRESSION_DROP:
         findings.append("semantic_progress_regression_review")
     if metrics.points >= PROGRESS_MIN_POINTS_FOR_IDLE:
         if (

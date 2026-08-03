@@ -60,6 +60,7 @@ from utils.media_utils import (
     video_content_metrics,
 )
 from utils.semantic_consistency import (
+    PROGRESS_REGRESSION_DROP,
     GripperTrace,
     analyze_progress_curve,
     build_stage_timeline,
@@ -942,7 +943,9 @@ def apply_progress_shape_checks(
     audit.semantic_progress_max_drop = metrics.max_drop
     audit.semantic_progress_idle_tail_ratio = metrics.idle_tail_ratio
     audit.metrics["semantic_progress_metrics"] = metrics.to_dict()
-    for reason in progress_curve_findings(metrics):
+    # The regression finding is decided later against a dataset-relative threshold
+    # (apply_progress_regression_reviews); only the shape-based findings fire here.
+    for reason in progress_curve_findings(metrics, include_regression=False):
         audit.review(reason)
 
 
@@ -1420,6 +1423,33 @@ def apply_distribution_reviews(audits: list[EpisodeQuality], state: AuditState) 
     }
 
 
+def apply_progress_regression_reviews(audits: list[EpisodeQuality]) -> float | None:
+    """Flag progress-curve regressions relative to the dataset, not a fixed drop.
+
+    A fixed 0.15 drop threshold sits inside the noise floor of real progress
+    curves and over-fires on clean data. Instead, take the population of per-episode
+    max drops and flag only the outliers, via the same ``robust_upper_threshold``
+    the action/state-jump checks use. ``PROGRESS_REGRESSION_DROP`` is passed as a
+    floor so the threshold is never *more* aggressive than the old constant, and is
+    used directly when the population is too small (< 5) for a robust estimate.
+    """
+    drops = [
+        float(audit.semantic_progress_max_drop)
+        for audit in audits
+        if audit.semantic_progress_max_drop is not None
+    ]
+    if not drops:
+        return None
+    threshold = robust_upper_threshold(drops, min_floor=PROGRESS_REGRESSION_DROP)
+    if threshold is None:
+        threshold = PROGRESS_REGRESSION_DROP
+    for audit in audits:
+        drop = audit.semantic_progress_max_drop
+        if drop is not None and float(drop) >= threshold:
+            audit.review("semantic_progress_regression_review")
+    return threshold
+
+
 def apply_duplicate_reviews(state: AuditState, duplicate_check: str) -> None:
     if duplicate_check == "none":
         return
@@ -1592,6 +1622,7 @@ def run_audit(config: AuditConfig) -> int:
         global_errors.append(f"dataset_global_range_end_mismatch:{state.running_global_index}!={metadata.total_frames}")
 
     thresholds = apply_distribution_reviews(state.audits, state)
+    thresholds["semantic_progress_regression_review"] = apply_progress_regression_reviews(state.audits)
     apply_duplicate_reviews(state, config.duplicate_check)
     motion_summary = apply_motion_reviews(config, state)
     stage_dwell_outliers = apply_stage_dwell_reviews(state)
@@ -1870,6 +1901,7 @@ def run_semantic_reuse(config: AuditConfig, report_path: Path) -> int:
         data = read_semantic_columns(config.root, record)
         collect_motion_signals(config, metadata, record, data, audit, state)
         apply_semantic_evaluation(config, metadata, record, data, audit, state)
+    apply_progress_regression_reviews(state.audits)
     motion_summary = apply_motion_reviews(config, state)
     stage_dwell_outliers = apply_stage_dwell_reviews(state)
     refresh_structural_status(state.audits)
