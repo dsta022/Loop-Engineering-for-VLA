@@ -1,0 +1,38 @@
+{
+  "iteration_id": "iteration-001",
+  "base_policy": "policy-v001",
+  "training_dataset": "../iteration_datasets/iteration-001",
+  "evaluation_dataset": "../evaluation_data/held_out_tasks",
+  "output_dir": "../policy_iteration_outputs/iteration-001",
+  "deployment_target": "lab-robot",
+  "approval_file": "./policy_iteration.approval.example.json",
+  "plugins": {
+    "trainer": {
+      "spec": "my_policy_backend:create_trainer",
+      "init": {},
+      "request": {
+        "epochs": 10
+      }
+    },
+    "evaluator": {
+      "spec": "my_policy_backend:create_evaluator",
+      "init": {},
+      "request": {
+        "real_robot_trials": 20
+      }
+    },
+    "deployer": {
+      "spec": "my_policy_backend:create_deployer",
+      "init": {},
+      "request": {}
+    }
+  },
+  "promotion": {
+    "min_success_rate": 0.8,
+    "max_intervention_rate": 0.2,
+    "max_critical_failures": 0,
+    "baseline_success_rate": 0.72,
+    "min_success_rate_delta": 0.03,
+    "require_human_approval": true
+  }
+}

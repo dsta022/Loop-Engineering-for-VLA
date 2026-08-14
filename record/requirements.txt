@@ -1,0 +1,15 @@
+# Base dependencies for the framework-free recorder (NO lerobot, NO torch).
+# ffmpeg/ffprobe must be available on PATH or in your conda env's Library/bin.
+numpy>=1.24
+pyarrow>=14
+pyyaml>=6
+opencv-python>=4.9
+pynput>=1.7            # keyboard shortcuts (optional; degrades to time-based episodes)
+feetech-servo-sdk>=1.0 # SO-100/SO-101 motors (import name: scservo_sdk)
+
+# --- optional extras (install only what your hardware / workflow needs) ------
+# RealSense D405/D435/D435i:   pip install pyrealsense2
+# Orbbec Femto Bolt / Gemini:  pip install pyorbbecsdk2
+# push_to_hub upload:          pip install huggingface_hub
+# feedback_record policy:      pip install lerobot        (only the in-loop
+#                              policy inference needs it; teleop recording does not)

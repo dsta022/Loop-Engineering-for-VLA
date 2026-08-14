@@ -1,12 +1,17 @@
 ﻿# Local datasets and generated LeRobot data
 *_dataset/
 determ_lerobot_rgb_depth_vla/
+language_enrichment_outputs/
+feedback_outputs/
+iteration_datasets/
+policy_iteration_outputs/
 
 # Local dependency/cache artifacts
 .merge_deps/
 __pycache__/
 *.py[cod]
 *$py.class
+*.egg-info/
 
 # Virtual environments and local configuration
 .venv/
@@ -19,3 +24,10 @@ venv/
 Thumbs.db
 .vscode/
 .idea/
+
+# Local data directory
+data/
+
+# Local model checkpoints (semantic-audit evaluator weights, policy checkpoints)
+checkpoint for audit/
+checkpoints/

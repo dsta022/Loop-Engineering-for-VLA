@@ -1,0 +1,40 @@
+# Backward-compatible copy of the default head+wrist RGB recording config.
+# Prefer `head_wrist_rgb_record.yaml` for new runs.
+
+robot:
+  type: so101_follower
+  port: COM5
+  id: so101_rgb_follower
+  cameras:
+    head:
+      type: opencv
+      index_or_path: 0
+      width: 640
+      height: 480
+      fps: 30
+    wrist:
+      type: opencv
+      index_or_path: 1
+      width: 640
+      height: 480
+      fps: 30
+
+teleop:
+  type: so101_leader
+  port: COM6
+  id: so101_rgb_leader
+
+dataset:
+  repo_id: YOUR_HF_USERNAME/so101_head_wrist_rgb
+  root: outputs/datasets/so101_head_wrist_rgb
+  fps: 30
+  num_episodes: 20
+  single_task: "Pick up the object."
+  episode_time_s: 60
+  reset_time_s: 30
+  video: true
+  streaming_encoding: true
+  encoder_threads: 2
+  push_to_hub: false
+
+display_data: true

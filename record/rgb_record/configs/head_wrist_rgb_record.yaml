@@ -1,0 +1,43 @@
+# RGB-only LeRobot recording config with two cameras.
+# Copy `rgb_record/` into the root of a LeRobot checkout, edit the
+# hardware fields below, then run:
+#
+# python .\rgb_record\rgb_record.py --config_path=.\rgb_record\configs\head_wrist_rgb_record.yaml
+
+robot:
+  type: so101_follower
+  port: COM5
+  id: so101_rgb_follower
+  cameras:
+    head:
+      type: opencv
+      index_or_path: 0
+      width: 640
+      height: 480
+      fps: 30
+    wrist:
+      type: opencv
+      index_or_path: 1
+      width: 640
+      height: 480
+      fps: 30
+
+teleop:
+  type: so101_leader
+  port: COM6
+  id: so101_rgb_leader
+
+dataset:
+  repo_id: YOUR_HF_USERNAME/so101_head_wrist_rgb
+  root: outputs/datasets/so101_head_wrist_rgb
+  fps: 30
+  single_task: "Pick up the object."
+  num_episodes: 20
+  episode_time_s: 60
+  reset_time_s: 30
+  video: true
+  push_to_hub: false
+  streaming_encoding: true
+  encoder_threads: 2
+
+display_data: true

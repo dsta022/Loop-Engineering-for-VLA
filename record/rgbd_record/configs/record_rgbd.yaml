@@ -1,0 +1,49 @@
+# RGB-D recording config (framework-free recorder; no lerobot required).
+#
+#   python ./record/rgbd_record/record.py --config_path=./record/rgbd_record/configs/record_rgbd.yaml
+#
+# Camera switching: set each camera's `type` to orbbec, intelrealsense, or opencv.
+# Depth notes:
+#   - orbbec: depth has its own depth_width/height/fps; align_depth_to_color=true
+#     reports depth in RGB pixel coordinates (depth shape matches RGB).
+#   - intelrealsense: depth shares the color width/height/fps (no separate fields).
+#   - any camera with use_depth=true produces an <name>_depth uint16 PNG sidecar.
+# Instead of editing here you can pick a set from ../camera_profiles.yaml with
+# --camera_profile=<name>.
+robot:
+  type: so100_follower
+  id: so100_rgbd_follower
+  port: COM5            # Linux: /dev/ttyACM0
+  use_degrees: true
+  cameras:
+    front:
+      type: orbbec
+      serial_number_or_name: "REPLACE_WITH_FEMTO_BOLT_SERIAL"
+      fps: 30
+      width: 1280
+      height: 720
+      use_depth: true
+      depth_fps: 30
+      depth_width: 640
+      depth_height: 576
+      align_depth_to_color: true
+    wrist:
+      type: opencv
+      index_or_path: 0   # Linux: /dev/video0
+      fps: 30
+      width: 640
+      height: 480
+teleop:
+  type: so100_leader
+  id: so100_leader
+  port: COM6            # Linux: /dev/ttyACM1
+dataset:
+  repo_id: YOUR_HF_USERNAME/so100_rgbd_dataset
+  root: outputs/datasets/so100_rgbd_dataset
+  fps: 30
+  single_task: Place the object precisely using the front depth camera.
+  num_episodes: 10
+  episode_time_s: 60
+  reset_time_s: 30
+  video: true
+  push_to_hub: false

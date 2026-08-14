@@ -1,0 +1,101 @@
+# ---------------------------------------------------------------------------
+# Shared camera inventory for every recording path (RGB, RGB-D, visuo-tactile).
+#
+# Edit camera hardware facts ONCE here: backend type, serial number / device
+# path, resolution, fps, and depth on/off. Select a profile at record time:
+#
+#   python .\rgb_record\rgb_record.py --config_path=... --camera_profile=rgb_head_wrist
+#   python .\rgbd_record\record.py --config_path=... --camera_profile=realsense_d435_front_d405_wrist
+#   python .\rgbd_record\feedback_record.py --config_path=... --camera_profile=orbbec_front_uvc_wrist
+#
+# `--camera_profile=default` selects `default_profile` below. The selected
+# profile replaces `robot.cameras` in the record config; every other field in
+# the record YAML (ports, task, episodes, ...) stays as-is.
+#
+# Camera blocks use the LeRobot camera config format:
+#   type: opencv | orbbec | intelrealsense
+#   - opencv:          index_or_path, fps, width, height           (RGB only)
+#   - orbbec:          serial_number_or_name, fps, width, height,
+#                      use_depth, depth_fps/width/height, align_depth_to_color
+#   - intelrealsense:  serial_number_or_name, fps, width, height, use_depth
+#                      (depth always shares the color stream resolution/fps)
+#
+# Find serial numbers with:
+#   lerobot-find-cameras opencv
+#   lerobot-find-cameras orbbec
+#   lerobot-find-cameras realsense
+#
+# The RGB-only recorder rejects profiles that enable use_depth; record depth
+# through the rgbd_record path.
+# ---------------------------------------------------------------------------
+default_profile: orbbec_front_uvc_wrist
+
+profiles:
+  # Plain RGB rig: two UVC webcams (head + wrist).
+  rgb_head_wrist:
+    head:
+      type: opencv
+      index_or_path: /dev/video2
+      fps: 30
+      width: 640
+      height: 480
+    wrist:
+      type: opencv
+      index_or_path: /dev/video0
+      fps: 30
+      width: 640
+      height: 480
+
+  # Orbbec Femto Bolt front RGB-D + UVC wrist.
+  orbbec_front_uvc_wrist:
+    front:
+      type: orbbec
+      serial_number_or_name: "REPLACE_WITH_FEMTO_BOLT_SERIAL"
+      fps: 30
+      width: 1280
+      height: 720
+      use_depth: true
+      depth_fps: 30
+      depth_width: 640
+      depth_height: 576
+      align_depth_to_color: true
+    wrist:
+      type: opencv
+      index_or_path: /dev/video0
+      fps: 30
+      width: 640
+      height: 480
+
+  # Intel RealSense D435/D435i front RGB-D + UVC wrist.
+  # 848x480@30 is the D435 depth sweet spot; 640x480 and 1280x720@30 also work.
+  realsense_d435_front_uvc_wrist:
+    front:
+      type: intelrealsense
+      serial_number_or_name: "REPLACE_WITH_D435_SERIAL"
+      fps: 30
+      width: 848
+      height: 480
+      use_depth: true
+    wrist:
+      type: opencv
+      index_or_path: /dev/video0
+      fps: 30
+      width: 640
+      height: 480
+
+  # All-RealSense rig: D435 front + D405 wrist (near-range depth ~7cm-50cm).
+  realsense_d435_front_d405_wrist:
+    front:
+      type: intelrealsense
+      serial_number_or_name: "REPLACE_WITH_D435_SERIAL"
+      fps: 30
+      width: 848
+      height: 480
+      use_depth: true
+    wrist:
+      type: intelrealsense
+      serial_number_or_name: "REPLACE_WITH_D405_SERIAL"
+      fps: 30
+      width: 640
+      height: 480
+      use_depth: true

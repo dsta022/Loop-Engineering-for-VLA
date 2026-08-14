@@ -1,0 +1,12 @@
+{
+  "policy_path": "checkpoint for audit/pretrained_model",
+  "device": "cuda",
+  "anchors": 6,
+  "eval_horizon": 10,
+  "sample_splits": 3,
+  "max_counterfactuals": 3,
+  "camera_map": {
+    "front": "head",
+    "wrist": "right_wrist"
+  }
+}

@@ -23,6 +23,25 @@ class EpisodeQuality:
     length: int = 0
     data_rows: int = 0
     depth_files: int = 0
+    structural_status: str = "keep"
+    semantic_status: str = "not_checked"
+    semantic_evaluator: str = ""
+    semantic_task_profile: str = ""
+    semantic_review_threshold: float | None = None
+    semantic_pass_threshold: float | None = None
+    semantic_progress_curve: list[float] = field(default_factory=list)
+    semantic_progress_final: float | None = None
+    semantic_success_probability: float | None = None
+    semantic_score: float | None = None
+    semantic_failure_stage: str = ""
+    semantic_progress_max_drop: float | None = None
+    semantic_progress_idle_tail_ratio: float | None = None
+    semantic_stage_timeline_source: str = ""
+    semantic_motion_verbs: str = ""
+    semantic_motion_gripper_transitions: int | None = None
+    semantic_score_uncertainty: float | None = None
+    semantic_view_disagreement: float | None = None
+    semantic_counterfactual_margin: float | None = None
     status: str = "keep"
     drop_reasons: list[str] = field(default_factory=list)
     review_reasons: list[str] = field(default_factory=list)
@@ -151,6 +170,25 @@ def write_quality_outputs(out_dir: Path, audits: list[EpisodeQuality], summary: 
     fields = [
         "episode_index",
         "status",
+        "structural_status",
+        "semantic_status",
+        "semantic_evaluator",
+        "semantic_task_profile",
+        "semantic_review_threshold",
+        "semantic_pass_threshold",
+        "semantic_progress_curve_json",
+        "semantic_progress_final",
+        "semantic_success_probability",
+        "semantic_score",
+        "semantic_failure_stage",
+        "semantic_progress_max_drop",
+        "semantic_progress_idle_tail_ratio",
+        "semantic_stage_timeline_source",
+        "semantic_motion_verbs",
+        "semantic_motion_gripper_transitions",
+        "semantic_score_uncertainty",
+        "semantic_view_disagreement",
+        "semantic_counterfactual_margin",
         "length",
         "data_rows",
         "depth_files",
@@ -165,6 +203,57 @@ def write_quality_outputs(out_dir: Path, audits: list[EpisodeQuality], summary: 
         for audit in audits:
             writer.writerow(
                 {
+                    "structural_status": audit.structural_status,
+                    "semantic_status": audit.semantic_status,
+                    "semantic_evaluator": audit.semantic_evaluator,
+                    "semantic_task_profile": audit.semantic_task_profile,
+                    "semantic_review_threshold": (
+                        "" if audit.semantic_review_threshold is None else audit.semantic_review_threshold
+                    ),
+                    "semantic_pass_threshold": (
+                        "" if audit.semantic_pass_threshold is None else audit.semantic_pass_threshold
+                    ),
+                    "semantic_progress_curve_json": json.dumps(audit.semantic_progress_curve),
+                    "semantic_progress_final": (
+                        "" if audit.semantic_progress_final is None else audit.semantic_progress_final
+                    ),
+                    "semantic_success_probability": (
+                        ""
+                        if audit.semantic_success_probability is None
+                        else audit.semantic_success_probability
+                    ),
+                    "semantic_score": "" if audit.semantic_score is None else audit.semantic_score,
+                    "semantic_failure_stage": audit.semantic_failure_stage,
+                    "semantic_progress_max_drop": (
+                        "" if audit.semantic_progress_max_drop is None else audit.semantic_progress_max_drop
+                    ),
+                    "semantic_progress_idle_tail_ratio": (
+                        ""
+                        if audit.semantic_progress_idle_tail_ratio is None
+                        else audit.semantic_progress_idle_tail_ratio
+                    ),
+                    "semantic_stage_timeline_source": audit.semantic_stage_timeline_source,
+                    "semantic_motion_verbs": audit.semantic_motion_verbs,
+                    "semantic_motion_gripper_transitions": (
+                        ""
+                        if audit.semantic_motion_gripper_transitions is None
+                        else audit.semantic_motion_gripper_transitions
+                    ),
+                    "semantic_score_uncertainty": (
+                        ""
+                        if audit.semantic_score_uncertainty is None
+                        else audit.semantic_score_uncertainty
+                    ),
+                    "semantic_view_disagreement": (
+                        ""
+                        if audit.semantic_view_disagreement is None
+                        else audit.semantic_view_disagreement
+                    ),
+                    "semantic_counterfactual_margin": (
+                        ""
+                        if audit.semantic_counterfactual_margin is None
+                        else audit.semantic_counterfactual_margin
+                    ),
                     "episode_index": audit.episode_index,
                     "status": audit.status,
                     "length": audit.length,

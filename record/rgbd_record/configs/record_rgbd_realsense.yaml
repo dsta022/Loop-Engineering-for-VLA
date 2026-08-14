@@ -1,0 +1,40 @@
+# All-RealSense RGB-D config (D435 front + D405 wrist), framework-free recorder.
+#
+#   python ./record/rgbd_record/record.py --config_path=./record/rgbd_record/configs/record_rgbd_realsense.yaml
+#
+# RealSense depth shares the color width/height/fps. 848x480@30 is the D435 depth
+# sweet spot; the D405 gives near-range depth (~7cm-50cm), ideal at the wrist.
+robot:
+  type: so101_follower
+  id: so101_rgbd_follower
+  port: COM5
+  use_degrees: true
+  cameras:
+    front:
+      type: intelrealsense
+      serial_number_or_name: "REPLACE_WITH_D435_SERIAL"
+      fps: 30
+      width: 848
+      height: 480
+      use_depth: true
+    wrist:
+      type: intelrealsense
+      serial_number_or_name: "REPLACE_WITH_D405_SERIAL"
+      fps: 30
+      width: 640
+      height: 480
+      use_depth: true
+teleop:
+  type: so101_leader
+  id: so101_leader
+  port: COM6
+dataset:
+  repo_id: YOUR_HF_USERNAME/so101_realsense_rgbd
+  root: outputs/datasets/so101_realsense_rgbd
+  fps: 30
+  single_task: Place the object precisely using the front depth camera.
+  num_episodes: 10
+  episode_time_s: 60
+  reset_time_s: 30
+  video: true
+  push_to_hub: false

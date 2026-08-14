@@ -1,243 +1,151 @@
-# LeRobot RGB/RGB-D VLA Dataset Toolkit
+# LeRobot RGB / RGB-D VLA Dataset Toolkit
+
+![Loop Engineering for VLAnything project page: an end-to-end toolkit for collecting, merging, auditing, enriching, and iteratively improving multimodal VLA datasets](assets/readme/site_preview.png)
+
+An end-to-end toolkit for building train-ready LeRobot datasets for
+vision-language-action models. It closes one auditable loop — **capture → audit → enrich → improve** —
+so every dataset decision, from a dropped episode to a promoted policy, stays traceable.
+
+Project page: <https://dataset-toolkit-vlanything.derek-xia.chatgpt.site/>
 
 [![Hugging Face Dataset](https://img.shields.io/badge/Hugging%20Face-DerekLX%2Flerobot__derek__depth-yellow)](https://huggingface.co/datasets/DerekLX/lerobot_derek_depth)
 [![Python](https://img.shields.io/badge/Python-3.12%2B-blue)](https://www.python.org/)
 [![LeRobot](https://img.shields.io/badge/Data-LeRobot%20RGB%2FRGB--D-green)](https://github.com/huggingface/lerobot)
 
-This software project provides a LeRobot RGB/RGB-D dataset toolkit for generating and auditing VLA train-ready datasets. It supports existing RGB-only datasets in the standard LeRobot ecosystem and RGB-D datasets with optional depth sidecars. RGB video is handled as a first-class data stream together with robot actions, states, metadata, and depth when available.
-
-The toolkit is designed for Orbbec RGB-D collection, merging multiple same-structure LeRobot datasets into one real dataset, auditing RGB video/action/metadata quality with optional depth checks, building a cleaned copy from reviewed episode lists, and uploading the final dataset to Hugging Face.
-
-It also includes an Orbbec RGB-D data collection overlay that can be copied directly into the official Hugging Face LeRobot repository and used from the LeRobot repo root: https://github.com/huggingface/lerobot. A visuo-tactile data collection pipeline is also in progress, and its dataset and toolkit will be released open source when ready.
-
-## Dataset
-
-The merged RGB-D VLA dataset is available on Hugging Face:
-
-```text
-https://huggingface.co/datasets/DerekLX/lerobot_derek_depth
-```
-
-Repository:
-
-```text
-DerekLX/lerobot_derek_depth
-```
-
-The Hugging Face dataset root is intended to contain the LeRobot subdirectories directly:
-
-```text
-data/
-depth_sidecar/
-meta/
-videos/
-```
-
 ## Dataset Preview
 
-The examples below are sampled from one `pick_up_cups_dataset` episode with two cups in the scene.
+Sampled from one `pick_up_cups_dataset` episode with two cups in the scene.
 
 ![Dataset preview: global robot collection view, wrist camera view, and front depth visualization](assets/readme/three_view_preview.png)
 
-Left to right: global robot collection view, wrist camera view, and front depth visualization.
+Left to right: global collection view, wrist camera view, and front depth visualization.
 
-Task data collection:
+| Front camera, 9 sampled episodes | Wrist camera, 9 sampled episodes |
+| --- | --- |
+| ![Front camera episode matrix](assets/readme/front_episode_matrix.jpg) | ![Wrist camera episode matrix](assets/readme/wrist_episode_matrix.jpg) |
 
-<video src="assets/readme/task_demo.mp4" controls width="720"></video>
+Published datasets:
 
-If the video does not render in your Markdown viewer, open [task_demo.mp4](assets/readme/task_demo.mp4) directly.
+- RGB-D: [DerekLX/lerobot_derek_depth](https://huggingface.co/datasets/DerekLX/lerobot_derek_depth)
+- RGB-only: [dadm022/lerobot_rgb_vla](https://huggingface.co/datasets/dadm022/lerobot_rgb_vla) — 2,318 episodes, 2.49M frames
 
-Aligned episode overview matrices:
+## Repository Layout
 
-| Front camera, 9 sampled episodes |
-| --- |
-| ![Front camera episode matrix](assets/readme/front_episode_matrix.jpg) |
-
-| Wrist camera, 9 sampled episodes |
-| --- |
-| ![Wrist camera episode matrix](assets/readme/wrist_episode_matrix.jpg) |
-
-| Front depth matrix, 9 sampled episodes |
-| --- |
-| ![Front depth episode matrix](assets/readme/depth_episode_matrix.png) |
-
-## Overview
-
-Main capabilities:
-
-- collect Orbbec RGB-D data through a LeRobot overlay;
-- merge multiple LeRobot-style datasets into one physical dataset;
-- keep the output as real files, not junctions or symbolic links;
-- rewrite episode indices, frame indices, task indices, metadata, parquet tables, video references, and depth sidecars;
-- audit RGB-only LeRobot datasets and RGB-D datasets with depth sidecars;
-- audit RGB videos, optional depth sidecars, action/state tables, metadata completeness, and deterministic quality failures;
-- separate episodes into `keep`, `review`, and `drop` lists;
-- build a clean train-ready dataset from `drop_episodes.txt`;
-- upload the dataset to Hugging Face with resumable large-folder upload support;
-- visualize depth PNG files for inspection.
-
+```text
+pipeline/               # production entry points: merge, audit, clean, feedback build,
+                        #   language enrichment, policy iteration, HF upload
+record/                 # robot + camera capture, writes LeRobot datasets:
+                        #   recorder/ (self-contained library), camera_profiles.yaml/.py,
+                        #   rgb_record/ (RGB-only), rgbd_record/ (Orbbec / RealSense RGB-D + feedback),
+                        #   visuo-tactile_record/ (vision + touch, in progress)
+tools/                  # local studios, depth visualization, structure-only checks
+utils/                  # shared audit, metadata, media, and semantic helpers
+semantic_backends/      # built-in --semantic-evaluator plugins (VLA checkpoint scoring)
+policy_improvement/     # feedback capture, intervention, and policy iteration contracts
+tests/                  # unit tests with synthetic datasets
+configs/                # example configuration files
+docs/                   # audit strategy and step-by-step operating playbook
+assets/                 # README media
+data/                   # local datasets (not tracked by git)
+```
 
 ## Getting Started
 
-We recommend using a dedicated Python environment. Python 3.12 or newer is recommended if you also use the Orbbec RGB-D capture overlay.
-
-Create and activate a conda environment:
+Python 3.12 or newer is recommended if you also use the Orbbec RGB-D recorder.
 
 ```powershell
 conda create -n vla_data_check python=3.12 -y
 conda activate vla_data_check
-```
-
-Install Python dependencies:
-
-```powershell
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-Full video decoding and video trimming require `ffmpeg` and `ffprobe` command-line tools. If they are not already available in the environment, install them with conda:
+Video decoding and trimming require `ffmpeg` / `ffprobe`:
 
 ```powershell
 conda install -c conda-forge ffmpeg -y
-ffmpeg -version
-ffprobe -version
 ```
 
-Enable faster Hugging Face uploads:
+Robot-side recording dependencies (cameras, Feetech motors) install separately from
+`record/requirements.txt` and are torch-free.
+
+## 1. Record
+
+Both recorders run directly from this repository and write standard LeRobot datasets.
+See [record/README.md](record/README.md) for the one-click guide.
+
+**RGB-only** (`record/rgb_record/`) — SO-100 / SO-101 arms; depth-enabled cameras are rejected here.
 
 ```powershell
-$env:HF_XET_HIGH_PERFORMANCE="1"
+python .\record\rgbd_record\find_cameras.py opencv
+python .\record\rgb_record\rgb_record.py --config_path=.\record\rgb_record\configs\head_wrist_rgb_record.yaml
 ```
 
-## Orbbec RGB-D Data Collection
-
-Folder:
-
-```text
-lerobot_rgbd_capture/
-```
-
-Purpose: add Orbbec Femto Bolt RGB-D recording to a LeRobot checkout. This makes the pipeline cover capture -> merge -> audit -> clean -> upload.
-
-Scope: this folder is for data collection only. It provides an Orbbec camera backend, RGB-D recording scripts, and depth sidecar storage helpers. It does not contain this project's depth model training or inference implementation.
-
-The capture overlay is designed to be copied directly into the official Hugging Face LeRobot repository and used from there:
-
-```text
-https://github.com/huggingface/lerobot
-```
-
-Copy the overlay contents into the root of a `huggingface/lerobot` checkout. The target is the directory that contains LeRobot's own `pyproject.toml` and `src/lerobot/`.
-
-Do not copy `lerobot_rgbd_capture/` as a nested subfolder under LeRobot. Merge its contents into the LeRobot repo root:
+**RGB-D** (`record/rgbd_record/`) — Orbbec Femto Bolt or Intel RealSense D405 / D435 / D435i.
+RGB streams are stored as mp4; any camera with `use_depth: true` also writes lossless uint16 PNG
+depth sidecars under `depth_sidecar/`, with a manifest at `meta/rgbd_vla_depth_recording.json`.
 
 ```powershell
-$LEROBOT_ROOT="E:\path\to\lerobot"
-Copy-Item -Recurse -Force .\lerobot_rgbd_capture\examples $LEROBOT_ROOT\
-Copy-Item -Recurse -Force .\lerobot_rgbd_capture\src $LEROBOT_ROOT\
-Copy-Item -Force .\lerobot_rgbd_capture\pyproject.toml $LEROBOT_ROOT\
+python .\record\rgbd_record\find_cameras.py orbbec
+python .\record\rgbd_record\record.py --config_path=.\record\rgbd_record\configs\record_rgbd.yaml
 ```
 
-After copying, the required files should appear directly under the LeRobot checkout:
+Add `--camera_profile=<name>` to pick a camera set from the shared inventory, or `--mock` for an
+offline dry run. Recording keys: Right = end episode, Left = re-record, Esc = stop.
 
-```text
-<lerobot_root>/examples/rgbd_vla_depth/
-<lerobot_root>/src/lerobot/cameras/orbbec/
-<lerobot_root>/src/lerobot/scripts/
-<lerobot_root>/src/lerobot/robots/so_follower/
-<lerobot_root>/pyproject.toml
-```
+The visuo-tactile path under `record/visuo-tactile_record/` is in progress and will be released
+open source when ready.
 
-Install inside the LeRobot repo root:
+## 2. Merge
+
+`dataset_merge.py` merges multiple same-structure datasets into one **real** LeRobot dataset —
+not a folder of folders. It rewrites episode indices, frame indices, task indices, metadata,
+parquet tables, video references, and depth sidecars, and keeps the output as real files
+(never junctions or symlinks).
 
 ```powershell
-cd $LEROBOT_ROOT
-python -m pip install -e ".[feetech,orbbec,rgbd_vla]" -e .\examples\rgbd_vla_depth
-```
-
-Find the Orbbec camera:
-
-```powershell
-lerobot-find-cameras orbbec
-```
-
-Write the camera serial and robot ports into:
-
-```text
-examples/rgbd_vla_depth/configs/record_rgbd.yaml
-```
-
-Record:
-
-```powershell
-python .\examples\rgbd_vla_depth\record.py --config_path=.\examples\rgbd_vla_depth\configs\record_rgbd.yaml
-```
-
-Depth is saved as lossless uint16 PNG sidecars under `depth_sidecar/`, with a recording manifest at `meta/rgbd_vla_depth_recording.json`.
-
-## Merge Datasets
-
-Use `merge_lerobot_datasets.py` to merge multiple `*_dataset` folders into one real LeRobot dataset.
-
-```powershell
-python .\merge_lerobot_datasets.py `
-  --src-root . `
-  --out-dir .\lerobot_derek_depth `
-  --dataset-glob "*_dataset" `
+python .\pipeline\dataset_merge.py `
+  --src-root .\data `
+  --dataset-names dataset_a dataset_b `
+  --out-dir .\data\merged_dataset `
   --copy-mode copy
 ```
 
-Overwrite an existing output:
+Omit `--dataset-names` to auto-discover every folder matching `--dataset-glob "*_dataset"`.
+Use `--copy-mode hardlink` to avoid duplicating video and depth payloads on the same volume,
+and `--overwrite` to replace an existing output.
+
+## 3. Audit
+
+`data_quality_audit.py` runs conservative quality checks. Deterministic failures are marked
+`drop`; suspicious but uncertain episodes are marked `review`. **The audit never deletes source data.**
+
+RGB checks cover video existence, real-file status, empty files, ffprobe dimensions/codec,
+optional full decode, and sampled black / white / near-constant / frozen content. RGB-only
+datasets need no `depth_sidecar/`. When depth is present it is checked separately through PNG
+structure, dimensions, optional decode, invalid-depth ratio, and constant-depth samples.
 
 ```powershell
-python .\merge_lerobot_datasets.py --out-dir .\lerobot_derek_depth --overwrite
+python .\pipeline\data_quality_audit.py .\data\merged_dataset
 ```
 
-## Audit Dataset Quality
+Output lands in `quality_audit_reports/<dataset>/` as `quality_report.csv`,
+`keep_episodes.txt`, `review_episodes.txt`, and `drop_episodes.txt`.
 
-Use `lerobot_data_quality_audit.py` to run conservative quality checks. Hard deterministic failures are marked as `drop`; suspicious but uncertain episodes are marked as `review`. The audit never deletes source data.
-
-RGB is in scope. The audit checks RGB video existence, real-file status, empty files, ffprobe dimensions/codec when available, full ffmpeg decode when requested, and sampled black/white/near-constant/frozen video content. Existing RGB-only LeRobot datasets do not need a `depth_sidecar/` directory. When depth sidecars are present, the audit checks them separately through PNG structure, dimensions, optional full decode, invalid-depth ratio, and constant-depth samples.
+Structure-only validation after a merge or clean build:
 
 ```powershell
-python .\lerobot_data_quality_audit.py .\lerobot_derek_depth
+python .\tools\dataset_completeness_check.py .\data\merged_dataset
 ```
 
-Default audit output:
+See [docs/data_quality_audit_strategy.md](docs/data_quality_audit_strategy.md) for the check
+catalogue and [docs/audit_operations_playbook.md](docs/audit_operations_playbook.md) for the
+step-by-step operating procedure.
 
-```text
-quality_audit_reports/lerobot_derek_depth/
-  quality_report.csv
-  quality_summary.json
-  keep_episodes.txt
-  review_episodes.txt
-  drop_episodes.txt
-```
+## 4. Build a Clean Dataset
 
-Run with video decode and sampled content checks:
-
-```powershell
-python .\lerobot_data_quality_audit.py .\lerobot_derek_depth `
-  --depth-check header `
-  --video-check decode `
-  --video-content-check sample `
-  --sample-frames 8 `
-  --depth-sample-frames 8
-```
-
-## Check Completeness
-
-Use `utils/check_lerobot_completeness.py` for structure-only validation after merging or cleaning.
-
-```powershell
-python .\utils\check_lerobot_completeness.py .\lerobot_derek_depth
-```
-
-## Build a Clean Dataset
-
-Use `build_clean_lerobot_dataset.py` to create a new physical dataset from `drop_episodes.txt`. The original dataset is preserved.
-
-Recommended workflow:
+`dataset_clean_build.py` creates a new physical dataset from `drop_episodes.txt`. The original
+is preserved.
 
 1. Run the quality audit.
 2. Inspect `quality_report.csv` and `review_episodes.txt`.
@@ -245,85 +153,66 @@ Recommended workflow:
 4. Build the clean dataset.
 
 ```powershell
-python .\build_clean_lerobot_dataset.py `
-  .\lerobot_derek_depth `
-  --drop-list .\quality_audit_reports\lerobot_derek_depth\drop_episodes.txt `
-  --out-dir .\lerobot_derek_depth_clean `
+python .\pipeline\dataset_clean_build.py `
+  .\data\merged_dataset `
+  --drop-list .\quality_audit_reports\merged_dataset\drop_episodes.txt `
+  --out-dir .\data\merged_dataset_clean `
   --video-mode trim-reencode
 ```
 
-Notes:
+Video modes: `trim-reencode` (default) physically removes dropped segments and is frame-accurate;
+`copy-referenced` is faster but copied mp4 files may retain unreferenced segments. The output
+includes `cleaning_manifest.json`.
 
-- `trim-reencode` trims videos per kept episode and physically removes dropped episode segments.
-- `copy-referenced` is faster, but copied mp4 files may still contain unreferenced old segments.
-- The output includes `cleaning_manifest.json`.
-
-## Upload to Hugging Face
-
-Use `push_lerobot_dataset_to_hf.py` to upload a local dataset directory to a Hugging Face Dataset repository.
-
-Recommended token setup:
+## 5. Upload to Hugging Face
 
 ```powershell
 $env:HF_TOKEN="hf_your_write_token"
-```
-
-The script also contains editable local defaults:
-
-```python
-HF_USERNAME = "your_huggingface_username"
-HF_WRITE_TOKEN = "hf_your_write_token_here"
-HF_DATASET_NAME = "your_dataset_name"
-```
-
-Always run a dry run first:
-
-```powershell
-python .\push_lerobot_dataset_to_hf.py --dry-run
-```
-
-Upload:
-
-```powershell
 $env:HF_XET_HIGH_PERFORMANCE="1"
-python .\push_lerobot_dataset_to_hf.py
+
+python .\pipeline\hf_push.py --dataset-dir .\data\merged_dataset_clean --repo-id user/dataset --dry-run
+python .\pipeline\hf_push.py --dataset-dir .\data\merged_dataset_clean --repo-id user/dataset
 ```
 
-Upload a cleaned dataset instead:
+Always dry-run first — it validates the dataset structure and prints the file count and size
+without uploading. Large folders upload resumably, so an interrupted transfer continues where
+it stopped. `HF_USERNAME` / `HF_DATASET_NAME` at the top of the script provide local defaults;
+never commit a real token.
+
+## Beyond the Core Loop
+
+These stages are optional and documented in full inside their own sections of the code and docs:
+
+- **Task Semantic Studio** (`tools/task_semantic_studio.py`) — parse detailed task descriptions
+  into validated, editable semantic profiles, and configure semantic audits locally.
+- **Semantic quality evaluation** (`--semantic-evaluator`) — score episodes with a trained VLA
+  checkpoint through the built-in action-consistency evaluator, including counterfactual
+  instruction checks and explicit score-reliability contracts. Model-free consistency checks are
+  available when no checkpoint exists.
+- **Trajectory language enrichment** (`pipeline/trajectory_language_enrichment.py`) — generate
+  validated subtask, event, state, and summary language sidecars for approved trajectories.
+- **Closed-loop policy improvement** (`record/rgbd_record/feedback_record.py`,
+  `pipeline/feedback_dataset_build.py`, `pipeline/policy_iteration.py`) — collect human
+  recovery/correction feedback with explicit action provenance, build weighted feedback datasets
+  that never treat autonomous failures as expert actions, then run plugin-based train, evaluate,
+  promote, and deploy iterations.
+
+Inspect depth data at any point:
 
 ```powershell
-python .\push_lerobot_dataset_to_hf.py `
-  --dataset-dir .\lerobot_derek_depth_clean `
-  --dataset-name lerobot_derek_depth_clean
-```
-
-## Visualize Depth
-
-Use `visualize_lerobot_depth.py` to inspect depth PNG statistics or generate visualization images.
-
-Print statistics:
-
-```powershell
-python .\visualize_lerobot_depth.py .\lerobot_derek_depth\depth_sidecar --stats
-```
-
-Generate visualization images:
-
-```powershell
-python .\visualize_lerobot_depth.py .\lerobot_derek_depth\depth_sidecar --out .\depth_vis
+python .\tools\depth_visualize.py .\data\merged_dataset\depth_sidecar --stats
+python .\tools\depth_visualize.py .\data\merged_dataset\depth_sidecar --out .\depth_vis
 ```
 
 ## Run Tests
 
-The repository includes a small synthetic LeRobot RGB-D dataset test. It does not use the real local datasets.
+Tests build small synthetic LeRobot RGB-D datasets and never touch real local data.
 
 ```powershell
 python -m unittest discover -s tests
 ```
 
-## Dataset Citation
-
-If this dataset is useful for your work, please cite or link the Hugging Face dataset:
+## Citation
 
 ```bibtex
 @dataset{dereklx_lerobot_derek_depth_2026,
@@ -334,3 +223,7 @@ If this dataset is useful for your work, please cite or link the Hugging Face da
   url       = {https://huggingface.co/datasets/DerekLX/lerobot_derek_depth}
 }
 ```
+
+## License
+
+MIT License. See [LICENSE](LICENSE).

@@ -1,0 +1,31 @@
+# RGB-only LeRobot teleoperation config with two camera previews.
+# Copy `rgb_record/` into the root of a LeRobot checkout, edit the
+# hardware fields below, then run:
+#
+# python .\rgb_record\rgb_teleoperate.py --config_path=.\rgb_record\configs\head_wrist_rgb_teleoperate.yaml
+
+robot:
+  type: so101_follower
+  port: COM5
+  id: so101_rgb_follower
+  cameras:
+    head:
+      type: opencv
+      index_or_path: 0
+      width: 640
+      height: 480
+      fps: 30
+    wrist:
+      type: opencv
+      index_or_path: 1
+      width: 640
+      height: 480
+      fps: 30
+
+teleop:
+  type: so101_leader
+  port: COM6
+  id: so101_rgb_leader
+
+fps: 30
+display_data: true

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import numpy as np
 
-from utils.lerobot_io import find_env_executable
+from utils.dataset_io import find_env_executable
 
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"

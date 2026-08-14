@@ -1,0 +1,74 @@
+# Human-guided policy feedback config (framework-free recorder).
+#
+#   python ./record/rgbd_record/feedback_record.py \
+#     --config_path=./record/rgbd_record/configs/record_rgbd_feedback.yaml \
+#     --policy.path=./outputs/train/run/checkpoints/last/pretrained_model
+#
+# corrections_only is the safe default: only human Recovery/Correction frames are
+# stored. Press `i` to take over and begin Recovery, `c` to mark Correction, `i`
+# again to complete and hand back to the policy. Feedback provenance is written to
+# a sidecar OUTSIDE the dataset (feedback_outputs/...), never as expert targets.
+#
+# NOTE: safe autonomous->human handover needs an actuated leader with position
+# feedback. A passive SO leader requires feedback.require_feedback_alignment=false
+# (accepting a manual-alignment warning) or a hardware-specific handover adapter.
+robot:
+  type: so100_follower
+  id: so100_rgbd_follower
+  port: COM5
+  use_degrees: true
+  cameras:
+    front:
+      type: orbbec
+      serial_number_or_name: "REPLACE_WITH_FEMTO_BOLT_SERIAL"
+      fps: 30
+      width: 1280
+      height: 720
+      use_depth: true
+      depth_fps: 30
+      depth_width: 640
+      depth_height: 576
+      align_depth_to_color: true
+    wrist:
+      type: opencv
+      index_or_path: 0
+      fps: 30
+      width: 640
+      height: 480
+teleop:
+  type: so100_leader
+  id: so100_leader
+  port: COM6
+policy:
+  path: REPLACE_WITH_PRETRAINED_POLICY   # a lerobot checkpoint; loaded by the default PolicyRunner
+  device: cuda
+dataset:
+  repo_id: YOUR_HF_USERNAME/so100_rgbd_feedback
+  root: outputs/datasets/so100_rgbd_feedback
+  fps: 30
+  single_task: Place the object precisely using the front depth camera.
+  num_episodes: 20
+  episode_time_s: 300
+  reset_time_s: 0
+  video: true
+  push_to_hub: false
+feedback:
+  mode: corrections_only        # corrections_only | event_buffer | continuous
+  session_id: session-001
+  source_policy: policy-v001
+  overwrite_sidecar: false
+  keyboard_enabled: true
+  toggle_control_key: i
+  begin_correction_key: c
+  cancel_key: x
+  save_event_key: h
+  stop_key: esc
+  buffer_seconds: 15
+  buffer_memory_mb: 2048
+  require_feedback_alignment: true
+  synchronization_seconds: 0.5
+  automatic_trigger:
+    plugin: null
+    config_path: null
+    interval_frames: 30
+    post_trigger_seconds: 5

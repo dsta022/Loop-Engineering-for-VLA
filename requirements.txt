@@ -16,3 +16,8 @@ rerun-sdk>=0.21
 av>=15.0,<16.0
 imageio[ffmpeg]>=2.34,<3.0
 jsonlines>=4.0,<5.0
+
+# Optional: the built-in VLA-checkpoint semantic evaluator
+# (semantic_backends.vla_checkpoint_evaluator) runs a lerobot policy and needs
+# the policy runtime in the environment that executes the semantic stage:
+#   pip install lerobot   # plus the policy's own extras (pi05 needs transformers)
