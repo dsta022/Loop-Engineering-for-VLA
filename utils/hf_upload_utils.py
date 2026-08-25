@@ -52,25 +52,15 @@ def validate_lerobot_dataset_for_upload(dataset_dir: Path, strict_no_reparse: bo
     if not dataset_dir.exists() or not dataset_dir.is_dir():
         raise FileNotFoundError(f"dataset directory not found: {dataset_dir}")
 
-    info_path = dataset_dir / "meta" / "info.json"
-    if not info_path.exists():
-        raise FileNotFoundError(f"dataset is incomplete; missing:\n{info_path}")
-    info = read_json(info_path)
-
     required = [
+        dataset_dir / "meta" / "info.json",
         dataset_dir / "meta" / "stats.json",
         dataset_dir / "meta" / "tasks.parquet",
         dataset_dir / "meta" / "episodes" / "chunk-000" / "file-000.parquet",
         dataset_dir / "data",
         dataset_dir / "videos",
+        dataset_dir / "depth_sidecar",
     ]
-    # depth sidecars only exist for datasets that declare image-dtype (depth) features;
-    # RGB-only LeRobot datasets have no depth_sidecar directory
-    has_image_features = any(
-        isinstance(spec, dict) and spec.get("dtype") == "image" for spec in info.get("features", {}).values()
-    )
-    if has_image_features:
-        required.append(dataset_dir / "depth_sidecar")
     missing = [str(path) for path in required if not path.exists()]
     if missing:
         raise FileNotFoundError("dataset is incomplete; missing:\n" + "\n".join(missing))
@@ -83,6 +73,7 @@ def validate_lerobot_dataset_for_upload(dataset_dir: Path, strict_no_reparse: bo
                 "dataset contains symlink/junction/reparse paths; refusing to upload non-real files:\n" + sample
             )
 
+    info = read_json(dataset_dir / "meta" / "info.json")
     for key in ["total_episodes", "total_frames", "total_tasks", "chunks_size", "features"]:
         if key not in info:
             raise ValueError(f"meta/info.json is missing key: {key}")

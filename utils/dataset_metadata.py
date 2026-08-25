@@ -10,7 +10,11 @@ from typing import Any
 import numpy as np
 import pyarrow as pa
 import pyarrow.compute as pc
+import pyarrow.parquet as pq
 
+
+CANONICAL_DATA_PATH = "data/chunk-{chunk_index:03d}/file-{file_index:03d}.parquet"
+CANONICAL_VIDEO_PATH = "videos/{video_key}/chunk-{chunk_index:03d}/file-{file_index:03d}.mp4"
 
 STATS_OFFSET_FEATURES = {
     "episode_index": "episode",
@@ -213,6 +217,70 @@ def data_path_for_episode(root: Path, row: dict[str, Any]) -> Path:
     chunk = int(row["data/chunk_index"])
     file_index = int(row["data/file_index"])
     return root / "data" / f"chunk-{chunk:03d}" / f"file-{file_index:03d}.parquet"
+
+
+class EpisodeDataReader:
+    """Read validated episode slices while caching the most recent data shard."""
+
+    def __init__(self, root: Path):
+        self.root = root
+        self._cached_path: Path | None = None
+        self._cached_table: pa.Table | None = None
+
+    def read_episode(self, row: dict[str, Any], columns: list[str] | None = None) -> pa.Table:
+        episode = int(row["episode_index"])
+        length = int(row["length"])
+        start = int(row["dataset_from_index"])
+        stop = int(row["dataset_to_index"])
+        if length < 0 or start < 0 or stop - start != length:
+            raise ValueError(
+                f"episode {episode} metadata length mismatch: "
+                f"length={length}, range={start}:{stop}"
+            )
+
+        data_path = data_path_for_episode(self.root, row)
+        if data_path != self._cached_path:
+            if not data_path.exists():
+                raise FileNotFoundError(f"missing data parquet: {data_path}")
+            self._cached_table = pq.read_table(data_path)
+            self._cached_path = data_path
+
+        table = self._cached_table
+        if table is None:
+            raise RuntimeError("episode data cache was not initialized")
+        required = {"index", "episode_index"}
+        missing = sorted(required.difference(table.column_names))
+        if missing:
+            raise ValueError(f"episode {episode} data is missing required columns: {missing}")
+        if table.num_rows == 0:
+            raise ValueError(f"episode {episode} data shard is empty: {data_path}")
+
+        shard_start = int(table["index"][0].as_py())
+        local_start = start - shard_start
+        if local_start < 0:
+            episode_table = table.slice(0, 0)
+        else:
+            episode_table = table.slice(local_start, length)
+        if episode_table.num_rows != length:
+            raise ValueError(
+                f"episode {episode} data row count mismatch: "
+                f"expected={length}, actual={episode_table.num_rows}"
+            )
+
+        actual_indices = episode_table["index"].to_numpy()
+        if not np.array_equal(actual_indices, np.arange(start, stop)):
+            raise ValueError(
+                f"episode {episode} data index mismatch: "
+                f"expected={start}:{stop}, actual={actual_indices[:20].tolist()}"
+            )
+        episode_indices = episode_table["episode_index"].to_numpy()
+        if not np.all(episode_indices == episode):
+            found = episode_indices[:20].tolist()
+            raise ValueError(
+                f"episode {episode} data identity mismatch: found={found}"
+            )
+
+        return episode_table.select(columns) if columns is not None else episode_table
 
 
 def scalar_list_for_field(value: float, field: pa.Field) -> list[Any]:

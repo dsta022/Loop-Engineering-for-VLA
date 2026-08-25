@@ -5,9 +5,10 @@ huggingface-hub>=1.0,<2.0
 hf-xet>=1.1
 Pillow>=10.0,<13.0
 
-# Optional runtime packages for the LeRobot Orbbec RGB-D capture overlay.
-# The patched LeRobot checkout should still be installed from its repo root with:
-# python -m pip install -e ".[feetech,orbbec,rgbd_vla]" -e .\examples\rgbd_vla_depth
+# Optional robot-side packages for the framework-free recorder in record/.
+# No lerobot checkout and no copy-in step are involved; install only what your
+# hardware needs. The minimal recorder set lives in record/requirements.txt:
+#   python -m pip install -r record/requirements.txt
 pyorbbecsdk2>=2.0.15,<2.1
 feetech-servo-sdk>=1.0,<2.0
 pynput>=1.7.8,<1.9

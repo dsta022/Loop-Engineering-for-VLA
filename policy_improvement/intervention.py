@@ -244,8 +244,11 @@ def create_intervention_key_listener(
     def on_release(key: Any) -> None:
         pressed.discard(key_name(key))
 
-    listener = keyboard.Listener(on_press=on_press, on_release=on_release)
-    listener.start()
+    try:
+        listener = keyboard.Listener(on_press=on_press, on_release=on_release)
+        listener.start()
+    except Exception as exc:  # noqa: BLE001
+        raise RuntimeError("failed to start keyboard intervention controls") from exc
     return listener
 
 

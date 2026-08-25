@@ -15,6 +15,7 @@ from policy_improvement.capture import (
     AsyncTriggerMonitor,
     BoundedCaptureBuffer,
     CapturedPacket,
+    estimate_payload_bytes,
 )
 from policy_improvement.contracts import (
     CaptureMode,
@@ -173,6 +174,24 @@ class PolicyImprovementTests(unittest.TestCase):
         self.assertIsNotNone(signal)
         self.assertTrue(signal.triggered)
         self.assertEqual(signal.source, TriggerSource.SEMANTIC)
+
+    def test_capture_buffer_accounts_dataclass_packet_payloads(self) -> None:
+        from dataclasses import dataclass, field
+
+        @dataclass(frozen=True)
+        class FramePacket:
+            observation: dict
+            executed_action: tuple
+            details: dict = field(default_factory=dict)
+
+        payload = FramePacket(observation={"camera": bytes(256 * 1024)}, executed_action=(1.0, 2.0))
+        self.assertGreaterEqual(estimate_payload_bytes(payload), 256 * 1024)
+
+        buffer = BoundedCaptureBuffer(max_seconds=10, fps=10, max_memory_mb=1)
+        for index in range(8):
+            buffer.append(CapturedPacket(float(index), payload))
+        self.assertLessEqual(buffer.memory_bytes, buffer.max_bytes)
+        self.assertLess(len(buffer), 8)
 
     def test_feedback_sidecar_is_audited_and_builds_weighted_training_dataset(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

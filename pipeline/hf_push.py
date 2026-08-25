@@ -47,7 +47,7 @@ from utils.hf_upload_utils import (
 # ---------------------------------------------------------------------------
 HF_USERNAME = "dadm022"
 HF_WRITE_TOKEN = ""
-HF_DATASET_NAME = "lerobot_rgb_vla"
+HF_DATASET_NAME = "determ_lerobot_rgb_depth_vla"
 
 DEFAULT_LOCAL_DATASET_DIR = Path("determ_lerobot_rgb_depth_vla")
 DEFAULT_PRIVATE_REPO = False

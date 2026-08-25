@@ -284,19 +284,32 @@ def sample_video_file(
     ffmpeg_path: str,
     sample_frames: int,
     stride: int,
+    start: float | None = None,
+    duration: float | None = None,
 ) -> tuple[np.ndarray | None, str]:
+    """Sample strided frames, optionally restricted to a [start, start+duration) segment.
+
+    ``-vsync vfr`` is required: without it ffmpeg pads the select filter's output
+    back to the input frame rate by duplicating the first surviving frame, so the
+    ``-frames:v`` cap would return identical copies of frame 0 instead of strided
+    samples spanning the video.
+    """
     stride = max(int(stride), 1)
     selector = f"eq(n\\,0)+not(mod(n\\,{stride}))"
-    cmd = [
-        ffmpeg_path,
-        "-hide_banner",
-        "-nostdin",
-        "-v",
-        "error",
+    cmd = [ffmpeg_path, "-hide_banner", "-nostdin", "-v", "error"]
+    if start is not None and start > 0:
+        cmd += ["-ss", format_seconds(start)]
+    if duration is not None:
+        if duration <= 0:
+            return None, "non_positive_video_segment_duration"
+        cmd += ["-t", format_seconds(duration)]
+    cmd += [
         "-i",
         str(video_path),
         "-vf",
         f"select='{selector}',scale={VIDEO_SAMPLE_WIDTH}:{VIDEO_SAMPLE_HEIGHT}",
+        "-vsync",
+        "vfr",
         "-frames:v",
         str(sample_frames),
         "-pix_fmt",

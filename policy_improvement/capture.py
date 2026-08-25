@@ -8,7 +8,7 @@ import math
 import time
 from collections import deque
 from concurrent.futures import Future, ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields, is_dataclass
 from pathlib import Path
 from typing import Any, Mapping, Protocol, Sequence, runtime_checkable
 
@@ -43,6 +43,11 @@ def estimate_payload_bytes(value: Any, seen: set[int] | None = None) -> int:
         return sum(estimate_payload_bytes(key, seen) + estimate_payload_bytes(item, seen) for key, item in value.items())
     if isinstance(value, Sequence):
         return sum(estimate_payload_bytes(item, seen) for item in value)
+    if is_dataclass(value) and not isinstance(value, type):
+        # Dataclass packets (e.g. the feedback recorder's DatasetPacket) carry
+        # camera frames in their fields; falling through to the 64-byte default
+        # would let the buffer blow far past its configured memory cap.
+        return sum(estimate_payload_bytes(getattr(value, f.name), seen) for f in fields(value))
     return 64
 
 

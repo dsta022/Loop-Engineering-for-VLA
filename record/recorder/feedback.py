@@ -51,7 +51,7 @@ from .config import RecordConfig
 from .dataset.writer import LeRobotDatasetWriter
 from .policy_runner import build_policy_runner
 from .session import build_robot, build_teleop, build_writer
-from .teleop.keyboard import is_headless
+from .teleop.keyboard import should_attempt_keyboard_listener
 
 logger = logging.getLogger(__name__)
 
@@ -194,7 +194,7 @@ def run_feedback_loop(*, cfg, fb_cfg, robot, teleop, writer, policy_runner, side
     )
     events = InterventionEventQueue()
     listener = None
-    if fb_cfg.keyboard_enabled and not is_headless():
+    if fb_cfg.keyboard_enabled and should_attempt_keyboard_listener():
         try:
             listener = create_intervention_key_listener(
                 events,

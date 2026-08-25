@@ -189,7 +189,11 @@ class AuditRuntime:
 class AuditCaches:
     video_probe: dict[Path, tuple[bool, str]] = field(default_factory=dict)
     video_decode: dict[Path, tuple[bool, str]] = field(default_factory=dict)
-    video_content: dict[Path, tuple[dict[str, float] | None, str]] = field(default_factory=dict)
+    # Keyed by (path, episode segment): episodes sharing one aggregated video
+    # file must each be sampled inside their own time range, not once per file.
+    video_content: dict[
+        tuple[Path, tuple[float, float] | None], tuple[dict[str, float] | None, str]
+    ] = field(default_factory=dict)
     # Aggregated-layout data files hold many episodes; keep only the most recent
     # file in memory since episodes are audited in file order.
     episode_data: dict[Path, pa.Table] = field(default_factory=dict)
@@ -662,7 +666,12 @@ def audit_video_files(
             continue
         if not decode_video_if_requested(video_key, video_path, runtime, caches, audit):
             continue
-        review_video_content_if_requested(video_key, video_path, config, runtime, caches, audit)
+        from_ts = float(metadata.episode_cols[f"videos/{video_key}/from_timestamp"][record.row])
+        to_ts = float(metadata.episode_cols[f"videos/{video_key}/to_timestamp"][record.row])
+        segment = (from_ts, to_ts - from_ts) if 0.0 <= from_ts < to_ts else None
+        review_video_content_if_requested(
+            video_key, video_path, segment, config, runtime, caches, audit
+        )
 
 
 def validate_video_path(video_key: str, video_path: Path, audit: EpisodeQuality) -> bool:
@@ -725,23 +734,27 @@ def decode_video_if_requested(
 def review_video_content_if_requested(
     video_key: str,
     video_path: Path,
+    segment: tuple[float, float] | None,
     config: AuditConfig,
     runtime: AuditRuntime,
     caches: AuditCaches,
     audit: EpisodeQuality,
 ) -> None:
     if runtime.video_content_check == "sample" and runtime.ffmpeg_path is not None:
-        if video_path not in caches.video_content:
+        cache_key = (video_path, segment)
+        if cache_key not in caches.video_content:
             frames, message = sample_video_file(
                 video_path,
                 runtime.ffmpeg_path,
                 sample_frames=config.sample_frames,
                 stride=config.video_sample_stride,
+                start=None if segment is None else segment[0],
+                duration=None if segment is None else segment[1],
             )
-            caches.video_content[video_path] = (
+            caches.video_content[cache_key] = (
                 (None, message) if frames is None else (video_content_metrics(frames), "")
             )
-        metrics, message = caches.video_content[video_path]
+        metrics, message = caches.video_content[cache_key]
         if metrics is None:
             audit.review(f"video_content_sample_failed_review:{video_key}:{message}")
             return

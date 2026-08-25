@@ -163,6 +163,12 @@ def prepare_output_dir(source: Path, out_dir: Path, overwrite: bool) -> None:
         pass
     else:
         raise ValueError("output dataset must not be inside the source dataset")
+    try:
+        source_resolved.relative_to(out_resolved)
+    except ValueError:
+        pass
+    else:
+        raise ValueError("output dataset must not contain the source dataset")
 
     if out_dir.exists():
         if not overwrite:

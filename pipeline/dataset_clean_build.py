@@ -20,9 +20,11 @@ import pyarrow.parquet as pq
 
 from utils.dataset_io import copy_file, copy_tree, find_env_executable, prepare_output_dir, read_json, safe_rel_path, write_json
 from utils.dataset_metadata import (
+    CANONICAL_DATA_PATH,
+    CANONICAL_VIDEO_PATH,
+    EpisodeDataReader,
     build_stats_json,
     chunk_index_for,
-    data_path_for_episode,
     feature_names_by_dtype,
     file_index_in_chunk,
     make_episode_row,
@@ -66,6 +68,7 @@ class CleanPlan:
     kept_old_tasks: list[int]
     task_map: dict[int, int]
     old_episode_rows: dict[int, dict[str, Any]]
+    data_reader: EpisodeDataReader
 
 
 @dataclass
@@ -149,7 +152,10 @@ def load_clean_plan(config: CleanConfig) -> CleanPlan:
     task_schema = tasks_table.schema
     task_columns = tasks_table.to_pydict()
     task_rows_by_index = {int(value): i for i, value in enumerate(task_columns["task_index"])}
-    old_episode_rows, used_tasks = collect_kept_episode_rows(src_dataset, keep_episodes, episode_schema, episode_columns, rows_by_episode)
+    data_reader = EpisodeDataReader(src_dataset)
+    old_episode_rows, used_tasks = collect_kept_episode_rows(
+        data_reader, keep_episodes, episode_schema, episode_columns, rows_by_episode
+    )
     kept_old_tasks, task_map = build_task_map(task_columns, task_rows_by_index, used_tasks)
 
     return CleanPlan(
@@ -167,6 +173,7 @@ def load_clean_plan(config: CleanConfig) -> CleanPlan:
         kept_old_tasks=kept_old_tasks,
         task_map=task_map,
         old_episode_rows=old_episode_rows,
+        data_reader=data_reader,
     )
 
 
@@ -182,7 +189,7 @@ def kept_episode_indices(drop_episodes: list[int], total_episodes: int) -> list[
 
 
 def collect_kept_episode_rows(
-    src_dataset: Path,
+    data_reader: EpisodeDataReader,
     keep_episodes: list[int],
     episode_schema: pa.Schema,
     episode_columns: dict[str, list[Any]],
@@ -194,7 +201,7 @@ def collect_kept_episode_rows(
         row_idx = rows_by_episode[old_episode]
         row = {name: episode_columns[name][row_idx] for name in episode_schema.names}
         old_episode_rows[old_episode] = row
-        task_table = pq.read_table(data_path_for_episode(src_dataset, row), columns=["task_index"])
+        task_table = data_reader.read_episode(row, columns=["task_index"])
         used_tasks.update(int(value.as_py()) for value in task_table["task_index"])
     return old_episode_rows, used_tasks
 
@@ -236,7 +243,7 @@ def write_rewritten_data(
     old_row: dict[str, Any],
     new_episode: int,
 ) -> tuple[pa.Table, list[int]]:
-    data_table = pq.read_table(data_path_for_episode(config.src_dataset, old_row))
+    data_table = plan.data_reader.read_episode(old_row)
     rewritten_data, original_task_values = rewrite_data_table(
         table=data_table,
         new_episode=new_episode,
@@ -418,6 +425,8 @@ def write_clean_metadata(config: CleanConfig, plan: CleanPlan, state: CleanState
     new_info["total_frames"] = state.new_global_from
     new_info["total_tasks"] = tasks_table_out.num_rows
     new_info["splits"] = {"train": f"0:{len(plan.keep_episodes)}"}
+    new_info["data_path"] = CANONICAL_DATA_PATH
+    new_info["video_path"] = CANONICAL_VIDEO_PATH
     write_json(meta_dir / "info.json", new_info)
     write_json(meta_dir / "stats.json", build_stats_json(episodes_table_out))
 

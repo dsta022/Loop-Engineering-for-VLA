@@ -20,6 +20,9 @@ import pyarrow.parquet as pq
 
 from utils.dataset_io import copy_file, copy_tree, read_json, remove_tree_safely, safe_rel_path, write_json
 from utils.dataset_metadata import (
+    CANONICAL_DATA_PATH,
+    CANONICAL_VIDEO_PATH,
+    EpisodeDataReader,
     add_int_column,
     append_columns,
     build_stats_json,
@@ -44,6 +47,14 @@ class MergeConfig:
     overwrite: bool
     dataset_names: list[str]
     copy_mode: str
+
+
+@dataclass(frozen=True)
+class MergeSource:
+    path: Path
+    info: dict[str, Any]
+    episodes_table: pa.Table
+    episode_rows: list[dict[str, Any]]
 
 
 @dataclass
@@ -182,6 +193,63 @@ def source_dataset_paths(config: MergeConfig) -> list[Path]:
     return src_paths
 
 
+def load_merge_source(path: Path) -> MergeSource:
+    validate_merge_source_dataset(path)
+    info = read_json(path / "meta" / "info.json")
+    episode_paths = sorted((path / "meta" / "episodes").glob("chunk-*/*.parquet"))
+    if len(episode_paths) != 1:
+        raise ValueError(
+            f"merge currently requires one episode metadata shard in {path.name}; "
+            f"found {len(episode_paths)}"
+        )
+
+    episodes_table = pq.read_table(episode_paths[0])
+    required_columns = {
+        "episode_index",
+        "length",
+        "data/chunk_index",
+        "data/file_index",
+        "dataset_from_index",
+        "dataset_to_index",
+    }
+    missing = sorted(required_columns.difference(episodes_table.column_names))
+    if missing:
+        raise ValueError(f"episode metadata is missing required columns in {path.name}: {missing}")
+
+    declared_episodes = int(info["total_episodes"])
+    if episodes_table.num_rows != declared_episodes:
+        raise ValueError(
+            f"episode metadata row count mismatch in {path.name}: "
+            f"{episodes_table.num_rows}!={declared_episodes}"
+        )
+    episode_rows = episodes_table.to_pylist()
+    episode_indices = [int(row["episode_index"]) for row in episode_rows]
+    if episode_indices != list(range(declared_episodes)):
+        raise ValueError(
+            f"episode metadata indices must be contiguous in {path.name}: "
+            f"found={episode_indices[:20]}"
+        )
+
+    expected_from = 0
+    for row in episode_rows:
+        actual_from = int(row["dataset_from_index"])
+        if actual_from != expected_from:
+            raise ValueError(
+                f"episode metadata ranges must start at zero and be contiguous in {path.name}: "
+                f"episode={row['episode_index']}, expected={expected_from}, actual={actual_from}"
+            )
+        expected_from = int(row["dataset_to_index"])
+
+    declared_frames = int(info["total_frames"])
+    metadata_frames = sum(int(row["length"]) for row in episode_rows)
+    if metadata_frames != declared_frames:
+        raise ValueError(
+            f"episode metadata frame count mismatch in {path.name}: "
+            f"{metadata_frames}!={declared_frames}"
+        )
+    return MergeSource(path=path, info=info, episodes_table=episodes_table, episode_rows=episode_rows)
+
+
 def validate_dataset_compatibility(src_dataset: Path, info: dict[str, Any], first_info: dict[str, Any]) -> None:
     if info.get("features") != first_info.get("features"):
         raise ValueError(f"feature schema differs in {src_dataset.name}")
@@ -204,11 +272,11 @@ def append_tasks(src_dataset: Path, state: MergeState) -> tuple[pa.Table, dict[i
 def append_episode_metadata(
     config: MergeConfig,
     src_dataset: Path,
+    episodes_table: pa.Table,
     state: MergeState,
     video_keys: list[str],
     chunks_size: int,
 ) -> None:
-    episodes_table = pq.read_table(src_dataset / "meta" / "episodes" / "chunk-000" / "file-000.parquet")
     if state.episode_schema is None:
         state.episode_schema = episodes_table.schema
     elif episodes_table.schema.names != state.episode_schema.names:
@@ -241,24 +309,20 @@ def append_episode_metadata(
 def rewrite_episode_data_file(
     config: MergeConfig,
     src_dataset: Path,
-    old_episode: int,
+    old_row: dict[str, Any],
+    data_reader: EpisodeDataReader,
     task_map: dict[int, int],
     image_keys: list[str],
     chunks_size: int,
     state: MergeState,
-) -> None:
+) -> int:
+    old_episode = int(old_row["episode_index"])
     new_episode = state.episode_offset + old_episode
-    src_chunk = chunk_index_for(old_episode, chunks_size)
-    src_file = file_index_in_chunk(old_episode, chunks_size)
     dst_chunk = chunk_index_for(new_episode, chunks_size)
     dst_file = file_index_in_chunk(new_episode, chunks_size)
 
-    src_data = src_dataset / "data" / f"chunk-{src_chunk:03d}" / f"file-{src_file:03d}.parquet"
     dst_data = config.out_dir / "data" / f"chunk-{dst_chunk:03d}" / f"file-{dst_file:03d}.parquet"
-    if not src_data.exists():
-        raise FileNotFoundError(f"missing data parquet: {src_data}")
-
-    data_table = pq.read_table(src_data)
+    data_table = data_reader.read_episode(old_row)
     data_table = add_int_column(data_table, "episode_index", state.episode_offset)
     data_table = add_int_column(data_table, "index", state.frame_offset)
     data_table = map_int_column(data_table, "task_index", task_map)
@@ -282,6 +346,7 @@ def rewrite_episode_data_file(
 
     if old_episode % 10 == 0:
         print_episode_progress(old_episode, new_episode, data_table.num_rows, checked_depth, missing_written)
+    return data_table.num_rows
 
 
 def print_episode_progress(
@@ -304,33 +369,52 @@ def rewrite_dataset_data_files(
     task_map: dict[int, int],
     image_keys: list[str],
     chunks_size: int,
-    source_episode_count: int,
+    episode_rows: list[dict[str, Any]],
     state: MergeState,
-) -> None:
-    for old_episode in range(source_episode_count):
-        rewrite_episode_data_file(config, src_dataset, old_episode, task_map, image_keys, chunks_size, state)
-        if old_episode == source_episode_count - 1 and old_episode % 10 != 0:
+) -> int:
+    data_reader = EpisodeDataReader(src_dataset)
+    written_frames = 0
+    for row_no, old_row in enumerate(episode_rows):
+        old_episode = int(old_row["episode_index"])
+        written_frames += rewrite_episode_data_file(
+            config, src_dataset, old_row, data_reader, task_map, image_keys, chunks_size, state
+        )
+        if row_no == len(episode_rows) - 1 and old_episode % 10 != 0:
             new_episode = state.episode_offset + old_episode
             print(f"  episode {old_episode:03d}->{new_episode:03d} complete")
+    return written_frames
 
 
-def advance_offsets(src_dataset: Path, info: dict[str, Any], tasks_table: pa.Table, state: MergeState) -> None:
-    source_episode_count = int(info["total_episodes"])
-    source_frame_count = int(info["total_frames"])
-    state.episode_offset += source_episode_count
-    state.frame_offset += source_frame_count
+def advance_offsets(
+    src_dataset: Path,
+    info: dict[str, Any],
+    tasks_table: pa.Table,
+    written_episodes: int,
+    written_frames: int,
+    state: MergeState,
+) -> None:
+    declared_episodes = int(info["total_episodes"])
+    declared_frames = int(info["total_frames"])
+    if written_episodes != declared_episodes or written_frames != declared_frames:
+        raise ValueError(
+            f"written dataset totals differ in {src_dataset.name}: "
+            f"episodes={written_episodes}!={declared_episodes}, "
+            f"frames={written_frames}!={declared_frames}"
+        )
+    state.episode_offset += written_episodes
+    state.frame_offset += written_frames
     state.task_offset += tasks_table.num_rows
-    state.total_episodes += source_episode_count
-    state.total_frames += source_frame_count
+    state.total_episodes += written_episodes
+    state.total_frames += written_frames
     print(
-        f"Done {src_dataset.name}: episodes={source_episode_count}, frames={source_frame_count}, "
+        f"Done {src_dataset.name}: episodes={written_episodes}, frames={written_frames}, "
         f"cumulative episodes={state.total_episodes}, frames={state.total_frames}"
     )
 
 
 def merge_one_dataset(
     config: MergeConfig,
-    src_dataset: Path,
+    source: MergeSource,
     dataset_no: int,
     dataset_count: int,
     first_info: dict[str, Any],
@@ -338,7 +422,8 @@ def merge_one_dataset(
     image_keys: list[str],
     state: MergeState,
 ) -> None:
-    info = read_json(src_dataset / "meta" / "info.json")
+    src_dataset = source.path
+    info = source.info
     validate_dataset_compatibility(src_dataset, info, first_info)
     chunks_size = int(first_info["chunks_size"])
 
@@ -346,17 +431,24 @@ def merge_one_dataset(
     print(f"[{dataset_no}/{dataset_count}] {src_dataset.name}")
 
     tasks_table, task_map = append_tasks(src_dataset, state)
-    append_episode_metadata(config, src_dataset, state, video_keys, chunks_size)
-    rewrite_dataset_data_files(
+    append_episode_metadata(config, src_dataset, source.episodes_table, state, video_keys, chunks_size)
+    written_frames = rewrite_dataset_data_files(
         config=config,
         src_dataset=src_dataset,
         task_map=task_map,
         image_keys=image_keys,
         chunks_size=chunks_size,
-        source_episode_count=int(info["total_episodes"]),
+        episode_rows=source.episode_rows,
         state=state,
     )
-    advance_offsets(src_dataset, info, tasks_table, state)
+    advance_offsets(
+        src_dataset,
+        info,
+        tasks_table,
+        written_episodes=len(source.episode_rows),
+        written_frames=written_frames,
+        state=state,
+    )
 
 
 def write_merged_metadata(config: MergeConfig, first_info: dict[str, Any], src_paths: list[Path], state: MergeState) -> None:
@@ -378,6 +470,8 @@ def write_merged_metadata(config: MergeConfig, first_info: dict[str, Any], src_p
     merged_info["total_frames"] = state.total_frames
     merged_info["total_tasks"] = tasks_table_out.num_rows
     merged_info["splits"] = {"train": f"0:{state.total_episodes}"}
+    merged_info["data_path"] = CANONICAL_DATA_PATH
+    merged_info["video_path"] = CANONICAL_VIDEO_PATH
     write_json(meta_dir / "info.json", merged_info)
     write_json(meta_dir / "stats.json", build_stats_json(episodes_table_out))
 
@@ -396,8 +490,14 @@ def run_merge_paths(src_paths: list[Path], out_dir: Path, overwrite: bool, copy_
     out_resolved = out_dir.resolve() if out_dir.exists() else out_dir.absolute()
     if out_resolved in resolved_sources:
         raise ValueError("merge output must not overwrite a source dataset")
-    for path in resolved_sources:
-        validate_merge_source_dataset(path)
+    sources = [load_merge_source(path) for path in resolved_sources]
+    for source in resolved_sources:
+        try:
+            source.relative_to(out_resolved)
+        except ValueError:
+            continue
+        raise ValueError(f"merge output must not contain a source dataset: {source}")
+ 
 
     config = MergeConfig(
         src_root=Path("."),
@@ -407,8 +507,8 @@ def run_merge_paths(src_paths: list[Path], out_dir: Path, overwrite: bool, copy_
         copy_mode=copy_mode,
     )
     prepare_merge_output(config)
-    src_paths = resolved_sources
-    first_info = read_json(src_paths[0] / "meta" / "info.json")
+    src_paths = [source.path for source in sources]
+    first_info = sources[0].info
     video_keys = video_keys_from_info(first_info)
     image_keys = image_keys_from_info(first_info)
     state = MergeState()
@@ -418,8 +518,8 @@ def run_merge_paths(src_paths: list[Path], out_dir: Path, overwrite: bool, copy_
     print(f"Copy mode: {config.copy_mode}")
     print(f"Video keys: {', '.join(video_keys)}")
 
-    for dataset_no, src_dataset in enumerate(src_paths, start=1):
-        merge_one_dataset(config, src_dataset, dataset_no, len(src_paths), first_info, video_keys, image_keys, state)
+    for dataset_no, source in enumerate(sources, start=1):
+        merge_one_dataset(config, source, dataset_no, len(sources), first_info, video_keys, image_keys, state)
 
     write_merged_metadata(config, first_info, src_paths, state)
     print("=" * 80)

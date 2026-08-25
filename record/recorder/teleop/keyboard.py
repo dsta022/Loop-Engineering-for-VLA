@@ -15,20 +15,21 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 
 logger = logging.getLogger(__name__)
 
 
-def is_headless() -> bool:
-    if os.name == "nt":
-        return False
-    return not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+def should_attempt_keyboard_listener() -> bool:
+    if os.name == "nt" or sys.platform == "darwin":
+        return True
+    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
 
 
 def init_keyboard_listener() -> tuple[object | None, dict[str, bool]]:
     events = {"exit_early": False, "rerecord_episode": False, "stop_recording": False}
 
-    if is_headless():
+    if not should_attempt_keyboard_listener():
         logger.info("headless environment: keyboard shortcuts disabled (using time-based episodes)")
         return None, events
 
@@ -54,6 +55,10 @@ def init_keyboard_listener() -> tuple[object | None, dict[str, bool]]:
         except Exception as exc:  # noqa: BLE001
             logger.warning("keyboard handler error: %s", exc)
 
-    listener = keyboard.Listener(on_press=on_press)
-    listener.start()
+    try:
+        listener = keyboard.Listener(on_press=on_press)
+        listener.start()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("keyboard listener unavailable (%s); shortcuts disabled", exc)
+        return None, events
     return listener, events
