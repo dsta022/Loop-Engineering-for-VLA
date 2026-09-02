@@ -32,6 +32,10 @@ from utils.semantic_evaluator import SemanticEpisode, SemanticResult
 from semantic.backends import VisionLanguageBackend
 from semantic.frame_sampler import FrameSamplingError, sample_segment_frames
 
+# The dataset-level consensus check lives in utils.semantic_consistency (model-free,
+# audit-facing) and is re-exported here so this module remains its documented home.
+from utils.semantic_consistency import directional_consensus_outliers  # noqa: F401
+
 
 DEFAULT_NUM_FRAMES = 16
 DEFAULT_FRAME_SIZE = 224
@@ -56,41 +60,6 @@ def spearman_with_time(values: np.ndarray) -> float:
     vr = value_rank - value_rank.mean()
     denom = np.sqrt((tr * tr).sum() * (vr * vr).sum())
     return float((tr * vr).sum() / denom) if denom > 0 else 0.0
-
-
-def directional_consensus_outliers(
-    correlations: Sequence[float | None],
-    *,
-    min_magnitude: float = 0.15,
-    min_population: int = 5,
-) -> set[int]:
-    """Flag episodes whose temporal direction opposes the dataset consensus.
-
-    The text anchor only fixes an *axis*, not which end is "done" — for one task
-    a forward episode's goal-alignment rises, for another it falls. Rather than
-    guess the polarity, read it from the data: training datasets are mostly
-    forward, so the consensus sign of the per-episode time-correlations *is*
-    forward, and a reversed episode is the sign-minority. This is label-free and
-    dataset-relative, in the same spirit as the audit's other population checks.
-
-    Returns the indices whose correlation opposes the consensus sign with
-    magnitude >= ``min_magnitude`` (so near-zero, directionless episodes are not
-    flagged). Empty when the population is too small for a consensus.
-    """
-    values = [c for c in correlations if c is not None]
-    if len(values) < min_population:
-        return set()
-    consensus = float(np.median(values))
-    if consensus == 0.0:
-        return set()
-    consensus_sign = 1.0 if consensus > 0 else -1.0
-    flagged: set[int] = set()
-    for index, corr in enumerate(correlations):
-        if corr is None:
-            continue
-        if abs(corr) >= min_magnitude and (1.0 if corr > 0 else -1.0) != consensus_sign:
-            flagged.add(index)
-    return flagged
 
 
 class TemporalDirectionEvaluator:

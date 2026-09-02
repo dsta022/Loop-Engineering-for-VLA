@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import unittest
 
-from pipeline.data_quality_audit import apply_progress_regression_reviews
+from pipeline.data_quality_audit import (
+    apply_progress_regression_reviews,
+    apply_reversal_reviews,
+)
 from utils.quality_utils import EpisodeQuality
 from utils.semantic_consistency import PROGRESS_REGRESSION_DROP
 
@@ -65,6 +68,31 @@ class RegressionCalibrationTest(unittest.TestCase):
         threshold = apply_progress_regression_reviews(audits)
         self.assertGreaterEqual(threshold, PROGRESS_REGRESSION_DROP)
         self.assertEqual(flagged(audits), set())
+
+
+class ReversalReviewTest(unittest.TestCase):
+    @staticmethod
+    def _ep(index, corr):
+        a = EpisodeQuality(index)
+        a.semantic_time_correlation = corr
+        return a
+
+    def test_reversed_minority_flagged(self):
+        audits = [self._ep(i, -0.3) for i in range(20)]
+        audits += [self._ep(20, 0.6), self._ep(21, 0.55)]  # reversed (opposite sign)
+        count = apply_reversal_reviews(audits)
+        self.assertEqual(count, 2)
+        flagged = {a.episode_index for a in audits if "semantic_reversed_episode_review" in a.review_reasons}
+        self.assertEqual(flagged, {20, 21})
+
+    def test_no_evaluator_correlations_is_noop(self):
+        audits = [self._ep(i, None) for i in range(6)]
+        self.assertEqual(apply_reversal_reviews(audits), 0)
+        self.assertTrue(all(not a.review_reasons for a in audits))
+
+    def test_consistent_population_not_flagged(self):
+        audits = [self._ep(i, -0.3) for i in range(8)]
+        self.assertEqual(apply_reversal_reviews(audits), 0)
 
 
 if __name__ == "__main__":
