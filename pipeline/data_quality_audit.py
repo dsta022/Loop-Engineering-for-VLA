@@ -65,6 +65,7 @@ from utils.semantic_consistency import (
     analyze_progress_curve,
     build_stage_timeline,
     channel_traces,
+    directional_consensus_outliers,
     dwell_outliers,
     gripper_pattern_findings,
     progress_curve_findings,
@@ -1142,6 +1143,11 @@ def apply_semantic_evaluation(
     audit.semantic_score = result.score
     if result.details:
         audit.metrics["semantic_details"] = result.details
+        # A temporal-direction evaluator reports goal-alignment-vs-time correlation;
+        # the reversal decision is deferred to the dataset pass (apply_reversal_reviews).
+        correlation = result.details.get("time_correlation")
+        if isinstance(correlation, (int, float)):
+            audit.semantic_time_correlation = float(correlation)
     if result.progress_curve:
         audit.metrics["semantic_progress_peak"] = max(result.progress_curve)
         audit.metrics["semantic_progress_points"] = len(result.progress_curve)
@@ -1450,6 +1456,22 @@ def apply_progress_regression_reviews(audits: list[EpisodeQuality]) -> float | N
     return threshold
 
 
+def apply_reversal_reviews(audits: list[EpisodeQuality]) -> int:
+    """Flag temporally reversed episodes against the dataset's direction consensus.
+
+    A reversed demonstration is physically valid and per-frame identical, so motion
+    and alignment miss it; only its goal-alignment-vs-time correlation flips sign.
+    A temporal-direction evaluator records that correlation per episode; here the
+    minority whose direction opposes the population is flagged (review only). Does
+    nothing unless such an evaluator populated the correlations.
+    """
+    correlations = [audit.semantic_time_correlation for audit in audits]
+    outliers = directional_consensus_outliers(correlations)
+    for index in outliers:
+        audits[index].review("semantic_reversed_episode_review")
+    return len(outliers)
+
+
 def apply_duplicate_reviews(state: AuditState, duplicate_check: str) -> None:
     if duplicate_check == "none":
         return
@@ -1526,6 +1548,9 @@ def build_summary(
         "semantic_consistency": {
             "progress_regression_review": sum(
                 "semantic_progress_regression_review" in a.review_reasons for a in audits
+            ),
+            "reversed_episode_review": sum(
+                "semantic_reversed_episode_review" in a.review_reasons for a in audits
             ),
             "progress_idle_tail_review": sum(
                 "semantic_progress_idle_tail_review" in a.review_reasons for a in audits
@@ -1623,6 +1648,7 @@ def run_audit(config: AuditConfig) -> int:
 
     thresholds = apply_distribution_reviews(state.audits, state)
     thresholds["semantic_progress_regression_review"] = apply_progress_regression_reviews(state.audits)
+    apply_reversal_reviews(state.audits)
     apply_duplicate_reviews(state, config.duplicate_check)
     motion_summary = apply_motion_reviews(config, state)
     stage_dwell_outliers = apply_stage_dwell_reviews(state)
@@ -1902,6 +1928,7 @@ def run_semantic_reuse(config: AuditConfig, report_path: Path) -> int:
         collect_motion_signals(config, metadata, record, data, audit, state)
         apply_semantic_evaluation(config, metadata, record, data, audit, state)
     apply_progress_regression_reviews(state.audits)
+    apply_reversal_reviews(state.audits)
     motion_summary = apply_motion_reviews(config, state)
     stage_dwell_outliers = apply_stage_dwell_reviews(state)
     refresh_structural_status(state.audits)
