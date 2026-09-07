@@ -1,0 +1,148 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="preload" as="image" href="assets/three_view_preview.png"/><link rel="stylesheet" href="assets/site.css"/><title>Loop Engineering for VLAnything | VLA Data Quality</title>
+<link rel="canonical" href="https://dsta022.github.io/Loop-Engineering-for-VLA/"/><meta name="description" content="An open-source toolkit for collecting, merging, auditing, enriching, and iteratively improving multimodal LeRobot datasets."/><link rel="shortcut icon" href="favicon.svg"/><link rel="icon" href="favicon.svg"/><link rel="preload" href="assets/fonts/geist/geist-ff2310f5.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="assets/fonts/geist/geist-875ccdd4.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="assets/fonts/geist/geist-52306abf.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="assets/fonts/geist/geist-001175b1.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="assets/fonts/geist/geist-98bbbccb.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="assets/fonts/geist-mono/geist-mono-f6b33328.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="assets/fonts/geist-mono/geist-mono-44e03052.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="assets/fonts/geist-mono/geist-mono-0638449e.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="assets/fonts/geist-mono/geist-mono-971fb274.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="assets/fonts/geist-mono/geist-mono-44745446.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="assets/fonts/geist-mono/geist-mono-013b2f2f.woff2" as="font" type="font/woff2" crossorigin />
+<style data-vinext-fonts>/* cyrillic-ext */
+@font-face {
+  font-family: 'Geist';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(assets/fonts/geist/geist-ff2310f5.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Geist';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(assets/fonts/geist/geist-875ccdd4.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Geist';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(assets/fonts/geist/geist-52306abf.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Geist';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(assets/fonts/geist/geist-001175b1.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Geist';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(assets/fonts/geist/geist-98bbbccb.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+.__font_geist_0tvmz3h { font-family: 'Geist', sans-serif; }
+
+.__variable_geist_0tvmz3h { --font-geist-sans: 'Geist', sans-serif; }
+
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Geist Mono';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(assets/fonts/geist-mono/geist-mono-f6b33328.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Geist Mono';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(assets/fonts/geist-mono/geist-mono-44e03052.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* symbols2 */
+@font-face {
+  font-family: 'Geist Mono';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(assets/fonts/geist-mono/geist-mono-0638449e.woff2) format('woff2');
+  unicode-range: U+2000-2001, U+2004-2008, U+200A, U+23B8-23BD, U+2500-259F;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Geist Mono';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(assets/fonts/geist-mono/geist-mono-971fb274.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Geist Mono';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(assets/fonts/geist-mono/geist-mono-44745446.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Geist Mono';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(assets/fonts/geist-mono/geist-mono-013b2f2f.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+.__font_geist_mono_1diim1n { font-family: 'Geist Mono', sans-serif; }
+
+.__variable_geist_mono_1diim1n { --font-geist-mono: 'Geist Mono', sans-serif; }
+</style>
+</head><body class="__variable_geist_0tvmz3h __variable_geist_mono_1diim1n antialiased"><main><nav class="nav-shell" aria-label="Primary navigation"><a class="brand" href="#top" aria-label="Loop Engineering for VLAnything home"><span class="brand-glyph" aria-hidden="true"><i></i><i></i><i></i></span><span>LE<span class="brand-slash">/</span>VLA</span></a><div class="nav-links"><a href="#features">Features</a><a href="#workflow">Workflow</a><a href="#quickstart">Quick start</a></div><a class="nav-github" href="https://github.com/dsta022/Loop-Engineering-for-VLA" target="_blank" rel="noreferrer"><svg aria-hidden="true" viewBox="0 0 24 24" class="github-mark"><path fill="currentColor" d="M12 .7A11.3 11.3 0 0 0 8.4 22.8c.6.1.8-.3.8-.6v-2.1c-3.4.7-4.1-1.5-4.1-1.5-.5-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.4 11.4 0 0 1 6 0C17.7 4.8 18.7 5 18.7 5c.6 1.6.2 2.9.1 3.2.8.9 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v2.7c0 .4.2.7.8.6A11.3 11.3 0 0 0 12 .7Z"></path></svg>GitHub<span aria-hidden="true">↗</span></a></nav><section class="hero section-shell" id="top"><div class="hero-copy"><div class="eyebrow"><span></span> Open-source · Multimodal LeRobot toolkit</div><h1>Better data.<br/><span>Better policies.</span></h1><p class="hero-lede">An end-to-end toolkit for collecting, merging, auditing, enriching, and iteratively improving multimodal datasets for vision-language-action models.</p><div class="hero-actions"><a class="button button-primary" href="https://github.com/dsta022/Loop-Engineering-for-VLA" target="_blank" rel="noreferrer"><svg aria-hidden="true" viewBox="0 0 24 24" class="github-mark"><path fill="currentColor" d="M12 .7A11.3 11.3 0 0 0 8.4 22.8c.6.1.8-.3.8-.6v-2.1c-3.4.7-4.1-1.5-4.1-1.5-.5-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.4 11.4 0 0 1 6 0C17.7 4.8 18.7 5 18.7 5c.6 1.6.2 2.9.1 3.2.8.9 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v2.7c0 .4.2.7.8.6A11.3 11.3 0 0 0 12 .7Z"></path></svg> Explore on GitHub <span aria-hidden="true">↗</span></a><a class="text-link" href="#quickstart">View quick start <span aria-hidden="true">↓</span></a></div><div class="compatible"><span>One auditable engineering loop</span><b>Capture</b><i></i> <b>Audit</b><i></i> <b>Enrich</b><i></i> <b>Improve</b></div></div><div class="hero-visual" aria-label="Multimodal RGB-D dataset preview and audit summary"><div class="visual-orbit orbit-one"></div><div class="visual-orbit orbit-two"></div><div class="data-card main-card"><div class="card-topline"><span>multimodal episode</span><span class="status-dot">● aligned views</span></div><div class="camera-frame"><img class="dataset-preview-image" src="assets/three_view_preview.png" alt="Global camera, wrist camera, and front depth visualization from a robot manipulation episode"/><span>GLOBAL · WRIST · DEPTH</span></div><div class="signal-row"><span>capture → policy loop</span><div class="sparkline" aria-hidden="true"><i style="height:22%"></i><i style="height:34%"></i><i style="height:29%"></i><i style="height:44%"></i><i style="height:39%"></i><i style="height:57%"></i><i style="height:49%"></i><i style="height:66%"></i><i style="height:58%"></i><i style="height:48%"></i><i style="height:62%"></i><i style="height:72%"></i><i style="height:64%"></i><i style="height:78%"></i><i style="height:70%"></i><i style="height:82%"></i></div></div></div><div class="data-card score-card"><span>DATA HEALTH</span><strong>92<span>%</span></strong><div class="score-track"><i></i></div></div><div class="data-card issue-card"><span class="issue-icon">3</span><div><strong>keep · review · drop</strong><small>Conservative episode triage</small></div></div><div class="axis-label axis-x">ACTION + STATE →</div><div class="axis-label axis-y">RGB + DEPTH ↑</div></div></section><section class="why-strip"><div class="section-shell why-inner"><p class="section-kicker">WHY IT MATTERS</p><blockquote>“From capture to feedback, every dataset decision stays auditable.”</blockquote><p>Loop Engineering for VLAnything connects deterministic checks, semantic review, trajectory language, and recovery-driven policy iteration.</p></div></section><section class="section-shell features-section" id="features"><div class="section-heading"><div><p class="section-kicker">CORE CAPABILITIES</p><h2>Engineer the <em>whole</em><br/>VLA data loop.</h2></div><p>Work across RGB, RGB-D, robot actions, states, metadata, task semantics, language annotations, and human feedback—without modifying the source dataset.</p></div><div class="feature-grid"><article class="feature-card accent-lime"><div class="feature-index">01</div><div class="feature-icon" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div><h3>Capture &amp; merge</h3><p>Record standard LeRobot RGB or Orbbec RGB-D data, then merge multiple datasets while rewriting indices, metadata, videos, and depth sidecars.</p></article><article class="feature-card accent-blue"><div class="feature-index">02</div><div class="feature-icon" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div><h3>Conservative audit</h3><p>Check RGB, depth, actions, states, and metadata. Deterministic failures become drop; uncertain episodes stay review; source data is never deleted.</p></article><article class="feature-card accent-violet"><div class="feature-index">03</div><div class="feature-icon" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div><h3>Semantic enrichment</h3><p>Build task profiles, plug in semantic evaluators, and generate validated subtask, event, state, and summary language sidecars.</p></article><article class="feature-card accent-orange"><div class="feature-index">04</div><div class="feature-icon" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div><h3>Closed-loop improvement</h3><p>Capture human recovery and correction data with action provenance, build weighted feedback datasets, and gate policy promotion and deployment.</p></article></div></section><section class="workflow-section" id="workflow"><div class="section-shell"><div class="workflow-title"><p class="section-kicker">A SIMPLE WORKFLOW</p><h2>From raw demonstrations<br/>to safer policy iterations.</h2></div><div class="step-list"><article class="step"><span class="step-number">01</span><div><h3>Capture</h3><p>Record RGB through official LeRobot or collect Orbbec RGB-D with lossless uint16 depth sidecars, then merge real datasets.</p></div><span class="step-arrow" aria-hidden="true">→</span></article><article class="step"><span class="step-number">02</span><div><h3>Audit</h3><p>Run deterministic checks over video, depth, actions, states, timestamps, and metadata; triage episodes into keep, review, or drop.</p></div><span class="step-arrow" aria-hidden="true">→</span></article><article class="step"><span class="step-number">03</span><div><h3>Enrich</h3><p>Optionally add task profiles, semantic progress evaluation, and time-aligned trajectory language after quality review.</p></div><span class="step-arrow" aria-hidden="true">→</span></article><article class="step"><span class="step-number">04</span><div><h3>Improve</h3><p>Collect human recovery and correction feedback, build a weighted training set, then run gated policy iterations.</p></div><span class="step-arrow" aria-hidden="true">✓</span></article></div></div></section><section class="section-shell quickstart-section" id="quickstart"><div class="quick-copy"><p class="section-kicker">QUICK START</p><h2>Start building<br/>the loop.</h2><p>Python 3.12+ is recommended for the Orbbec RGB-D collection overlay. Install FFmpeg for full video decoding and trimming, then follow the README for the capture, audit, enrichment, or feedback path you need.</p><a class="text-link light-link" href="https://github.com/dsta022/Loop-Engineering-for-VLA#readme" target="_blank" rel="noreferrer">Open full documentation <span aria-hidden="true">↗</span></a></div><div class="terminal" aria-label="Git clone command"><div class="terminal-bar"><div><i></i><i></i><i></i></div><span>TERMINAL</span></div><div class="terminal-body"><p><span>$</span> git clone https://github.com/dsta022/Loop-Engineering-for-VLA.git</p><p><span>$</span> cd Loop-Engineering-for-VLA</p><p><span>$</span> conda create -n vla_data_check python=3.12 -y</p><p><span>$</span> python -m pip install -r requirements.txt</p><p class="terminal-comment"># Add FFmpeg for full decode and video trimming</p></div><button class="copy-button" type="button" aria-live="polite">Copy clone command</button></div></section><section class="cta-section"><div class="section-shell cta-inner"><div><p class="section-kicker">OPEN RESEARCH TOOLING</p><h2>Close the loop on VLA data.</h2></div><a class="button button-dark" href="https://github.com/dsta022/Loop-Engineering-for-VLA" target="_blank" rel="noreferrer"><svg aria-hidden="true" viewBox="0 0 24 24" class="github-mark"><path fill="currentColor" d="M12 .7A11.3 11.3 0 0 0 8.4 22.8c.6.1.8-.3.8-.6v-2.1c-3.4.7-4.1-1.5-4.1-1.5-.5-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.4 11.4 0 0 1 6 0C17.7 4.8 18.7 5 18.7 5c.6 1.6.2 2.9.1 3.2.8.9 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v2.7c0 .4.2.7.8.6A11.3 11.3 0 0 0 12 .7Z"></path></svg> View repository <span aria-hidden="true">↗</span></a></div></section><footer class="footer section-shell"><div class="brand footer-brand"><span class="brand-glyph" aria-hidden="true"><i></i><i></i><i></i></span><span>LE<span class="brand-slash">/</span>VLA</span></div><p>Loop Engineering for VLAnything</p><p>Capture · audit · enrich · improve.</p></footer></main><script>
+(function () {
+  var button = document.querySelector(".copy-button");
+  if (!button) return;
+  var command = "git clone https://github.com/dsta022/Loop-Engineering-for-VLA.git";
+  var idle = button.textContent;
+  function show(ok) {
+    button.textContent = ok ? "Copied ✓" : idle;
+    window.setTimeout(function () { button.textContent = idle; }, 1800);
+  }
+  button.addEventListener("click", function () {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(command).then(function () { show(true); }, function () { show(false); });
+      return;
+    }
+    var area = document.createElement("textarea");
+    area.value = command;
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    try { document.execCommand("copy"); show(true); } catch (error) { show(false); }
+    area.remove();
+  });
+})();
+</script>
+</body></html>

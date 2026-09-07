@@ -1,8 +1,25 @@
-# Multimodal VLA Dataset Toolkit
+# Loop Engineering for VLAnything
 
+[![Website](https://img.shields.io/badge/Website-dsta022.github.io-111111)](https://dsta022.github.io/Loop-Engineering-for-VLA/)
 [![Hugging Face Dataset](https://img.shields.io/badge/Hugging%20Face-DerekLX%2Flerobot__derek__depth-yellow)](https://huggingface.co/datasets/DerekLX/lerobot_derek_depth)
 [![Python](https://img.shields.io/badge/Python-3.12%2B-blue)](https://www.python.org/)
 [![LeRobot](https://img.shields.io/badge/Data-LeRobot%20RGB%2FRGB--D-green)](https://github.com/huggingface/lerobot)
+
+[![Loop Engineering for VLAnything website: Better data. Better policies.](assets/readme/site_hero.png)](https://dsta022.github.io/Loop-Engineering-for-VLA/)
+
+**Open-source · Multimodal LeRobot toolkit**
+
+## Better data. Better policies.
+
+An end-to-end toolkit for collecting, merging, auditing, enriching, and iteratively improving multimodal datasets for vision-language-action models.
+
+One auditable engineering loop: **Capture** · **Audit** · **Enrich** · **Improve**
+
+[Explore the website](https://dsta022.github.io/Loop-Engineering-for-VLA/) · [Quick start](#getting-started) · [Repository layout](#repository-layout)
+
+The website is served by GitHub Pages from [`docs/`](docs/); every push to `main` that touches it is redeployed by [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
+
+## Multimodal VLA Dataset Toolkit
 
 This software project provides a multimodal VLA dataset toolkit for generating and auditing train-ready robotics datasets. It supports existing RGB-only datasets in the standard LeRobot ecosystem and RGB-D datasets with optional depth sidecars. RGB video is handled as a first-class data stream together with robot actions, states, metadata, and depth when available.
 
@@ -84,7 +101,9 @@ semantic_backends/      # built-in --semantic-evaluator plugins (VLA checkpoint 
 policy_improvement/     # feedback capture, intervention, and policy iteration contracts
 tests/                  # unit tests with synthetic datasets
 configs/                # example configuration files
-docs/                   # audit strategy and step-by-step operating playbook
+docs/                   # project website (GitHub Pages source) plus the audit strategy
+                        #   and step-by-step operating playbook
+.github/workflows/      # GitHub Pages deployment of docs/ on every push to main
 assets/                 # README media
 data/                   # local datasets (not tracked by git)
 ```
