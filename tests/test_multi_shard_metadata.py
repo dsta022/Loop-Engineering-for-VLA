@@ -163,6 +163,14 @@ class ParallelVideoPrewarmTests(unittest.TestCase):
                 row[f"videos/{RGB_KEY}/from_timestamp"] = float(episode)
                 row[f"videos/{RGB_KEY}/to_timestamp"] = float(episode) + 1.0
             pq.write_table(pa.table({key: [row[key] for row in rows] for key in rows[0]}), episode_path)
+            # The synthetic info.json declares a 2x2 placeholder video; the real test
+            # video is 64x48, so declare that and drop the codec expectation so that
+            # ffprobe (when installed) validates the file instead of rejecting it.
+            info_path = dataset / "meta" / "info.json"
+            info = json.loads(info_path.read_text(encoding="utf-8"))
+            info["features"][RGB_KEY]["shape"] = [48, 64, 3]
+            info["features"][RGB_KEY]["info"].pop("video.codec", None)
+            info_path.write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8")
 
             verdicts = {}
             for workers in (1, 3):
@@ -186,6 +194,7 @@ class ParallelVideoPrewarmTests(unittest.TestCase):
                         for row in csv.DictReader(handle)
                     }
             self.assertEqual(verdicts[1], verdicts[3])
+            self.assertTrue(all(status != "drop" for status, _ in verdicts[3].values()), verdicts[3])
             self.assertIn("video_file_black_high_review", verdicts[3][1][1])
             self.assertNotIn("video_file_black_high_review", verdicts[3][0][1])
 
