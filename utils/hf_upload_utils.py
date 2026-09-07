@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from utils.dataset_io import discover_reparse_paths, read_json
+from utils.dataset_metadata import missing_episode_metadata
 
 
 IGNORE_PATTERNS = [
@@ -56,12 +57,11 @@ def validate_lerobot_dataset_for_upload(dataset_dir: Path, strict_no_reparse: bo
         dataset_dir / "meta" / "info.json",
         dataset_dir / "meta" / "stats.json",
         dataset_dir / "meta" / "tasks.parquet",
-        dataset_dir / "meta" / "episodes" / "chunk-000" / "file-000.parquet",
         dataset_dir / "data",
         dataset_dir / "videos",
         dataset_dir / "depth_sidecar",
     ]
-    missing = [str(path) for path in required if not path.exists()]
+    missing = [str(path) for path in required if not path.exists()] + missing_episode_metadata(dataset_dir)
     if missing:
         raise FileNotFoundError("dataset is incomplete; missing:\n" + "\n".join(missing))
 

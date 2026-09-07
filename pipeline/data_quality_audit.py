@@ -20,8 +20,11 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, replace
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -39,7 +42,13 @@ import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
 from utils.dataset_io import discover_reparse_paths, is_reparse_path, read_json, safe_rel_path
-from utils.dataset_metadata import feature_names_by_dtype, feature_shape, video_expected_codec
+from utils.dataset_metadata import (
+    episode_metadata_paths,
+    feature_names_by_dtype,
+    feature_shape,
+    read_episode_metadata,
+    video_expected_codec,
+)
 from utils.media_utils import (
     depth_content_metrics,
     ffmpeg_available,
@@ -78,6 +87,7 @@ from utils.semantic_evaluator import (
     normalize_result,
 )
 from utils.task_semantic_profile import TaskProfileRegistry, TaskSemanticProfile
+from utils.version import __version__
 from policy_improvement.contracts import ControlPhase, FeedbackSidecar
 from utils.quality_utils import (
     EpisodeQuality,
@@ -114,8 +124,11 @@ class AuditConfig:
     semantic_view_disagreement_threshold: float = 0.30
     semantic_uncertainty_threshold: float = 0.15
     semantic_counterfactual_margin_threshold: float = 0.10
+    workers: int = 1
 
     def __post_init__(self) -> None:
+        if self.workers < 1:
+            raise ValueError("workers must be at least 1")
         if not 0.0 <= self.semantic_review_threshold <= 1.0:
             raise ValueError("semantic review threshold must be within [0, 1]")
         if not 0.0 <= self.semantic_pass_threshold <= 1.0:
@@ -226,10 +239,16 @@ def required_dataset_paths(root: Path) -> list[Path]:
         root / "meta" / "info.json",
         root / "meta" / "stats.json",
         root / "meta" / "tasks.parquet",
-        root / "meta" / "episodes" / "chunk-000" / "file-000.parquet",
         root / "data",
         root / "videos",
     ]
+
+
+def missing_required_paths(root: Path) -> list[str]:
+    missing = [f"missing_required_path:{path}" for path in required_dataset_paths(root) if not path.exists()]
+    if not episode_metadata_paths(root):
+        missing.append(f"missing_required_path:{root / 'meta' / 'episodes' / 'chunk-*' / 'file-*.parquet'}")
+    return missing
 
 
 def write_failure(out_dir: Path, root: Path, errors: list[str], not_checked: list[str] | None = None) -> int:
@@ -253,10 +272,7 @@ def load_metadata(config: AuditConfig) -> DatasetMetadata:
     action_shape = feature_shape(info, "action")
     state_shape = feature_shape(info, "observation.state")
     tasks = pq.read_table(config.root / "meta" / "tasks.parquet")
-    episodes = pq.read_table(
-        config.root / "meta" / "episodes" / "chunk-000" / "file-000.parquet",
-        columns=build_episode_columns(video_keys),
-    )
+    episodes = read_episode_metadata(config.root, columns=build_episode_columns(video_keys))
     return DatasetMetadata(
         info=info,
         tasks=tasks,
@@ -648,6 +664,93 @@ def review_depth_content(
         audit.review(f"depth_constant_high_review:{image_key}")
 
 
+def episode_video_reference(
+    config: AuditConfig, metadata: DatasetMetadata, row: int, video_key: str
+) -> tuple[Path, tuple[float, float] | None]:
+    """Resolve one episode's video file and its (start, duration) segment."""
+    cols = metadata.episode_cols
+    chunk = int(cols[f"videos/{video_key}/chunk_index"][row])
+    file_index = int(cols[f"videos/{video_key}/file_index"][row])
+    video_path = config.root / "videos" / video_key / f"chunk-{chunk:03d}" / f"file-{file_index:03d}.mp4"
+    from_ts = float(cols[f"videos/{video_key}/from_timestamp"][row])
+    to_ts = float(cols[f"videos/{video_key}/to_timestamp"][row])
+    segment = (from_ts, to_ts - from_ts) if 0.0 <= from_ts < to_ts else None
+    return video_path, segment
+
+
+def prewarm_video_caches(
+    config: AuditConfig, metadata: DatasetMetadata, runtime: AuditRuntime, caches: AuditCaches
+) -> None:
+    """Run ffprobe, ffmpeg decode, and content sampling for unique videos in parallel.
+
+    The episode loop stays sequential and deterministic; it simply finds its
+    results already cached. Every ffmpeg call is a subprocess, so threads are
+    enough to overlap them. Verdict semantics are unchanged: a file is decoded
+    only when its probe passed, and sampled only when probe and decode passed.
+    """
+    if config.workers <= 1 or not metadata.video_keys:
+        return
+    key_by_path: dict[Path, str] = {}
+    segment_keys: dict[tuple[Path, tuple[float, float] | None], None] = {}
+    for row in range(metadata.episodes.num_rows):
+        for video_key in metadata.video_keys:
+            video_path, segment = episode_video_reference(config, metadata, row, video_key)
+            if not video_path.is_file():
+                continue
+            key_by_path.setdefault(video_path, video_key)
+            segment_keys.setdefault((video_path, segment), None)
+
+    def probe_ok(path: Path) -> bool:
+        return caches.video_probe.get(path, (True, ""))[0]
+
+    def decode_ok(path: Path) -> bool:
+        return caches.video_decode.get(path, (True, ""))[0]
+
+    def sample(key: tuple[Path, tuple[float, float] | None]) -> tuple[dict[str, float] | None, str]:
+        path, segment = key
+        frames, message = sample_video_file(
+            path,
+            runtime.ffmpeg_path or "",
+            sample_frames=config.sample_frames,
+            stride=config.video_sample_stride,
+            start=None if segment is None else segment[0],
+            duration=None if segment is None else segment[1],
+        )
+        return (None, message) if frames is None else (video_content_metrics(frames), "")
+
+    with ThreadPoolExecutor(max_workers=config.workers) as pool:
+        if runtime.video_check in {"ffprobe", "decode"} and runtime.ffprobe_path is not None:
+            futures = {
+                path: pool.submit(
+                    ffprobe_video,
+                    path,
+                    runtime.ffprobe_path,
+                    feature_shape(metadata.info, key),
+                    video_expected_codec(metadata.info, key),
+                )
+                for path, key in key_by_path.items()
+                if path not in caches.video_probe
+            }
+            for path, future in futures.items():
+                caches.video_probe[path] = future.result()
+        if runtime.video_check == "decode" and runtime.ffmpeg_path is not None:
+            futures = {
+                path: pool.submit(ffmpeg_decode_video, path, runtime.ffmpeg_path)
+                for path in key_by_path
+                if probe_ok(path) and path not in caches.video_decode
+            }
+            for path, future in futures.items():
+                caches.video_decode[path] = future.result()
+        if runtime.video_content_check == "sample" and runtime.ffmpeg_path is not None:
+            futures = {
+                key: pool.submit(sample, key)
+                for key in segment_keys
+                if probe_ok(key[0]) and decode_ok(key[0]) and key not in caches.video_content
+            }
+            for key, future in futures.items():
+                caches.video_content[key] = future.result()
+
+
 def audit_video_files(
     config: AuditConfig,
     metadata: DatasetMetadata,
@@ -657,18 +760,13 @@ def audit_video_files(
     audit: EpisodeQuality,
 ) -> None:
     for video_key in metadata.video_keys:
-        chunk = int(metadata.episode_cols[f"videos/{video_key}/chunk_index"][record.row])
-        file_index = int(metadata.episode_cols[f"videos/{video_key}/file_index"][record.row])
-        video_path = config.root / "videos" / video_key / f"chunk-{chunk:03d}" / f"file-{file_index:03d}.mp4"
+        video_path, segment = episode_video_reference(config, metadata, record.row, video_key)
         if not validate_video_path(video_key, video_path, audit):
             continue
         if not probe_video_if_requested(video_key, video_path, metadata, runtime, caches, audit):
             continue
         if not decode_video_if_requested(video_key, video_path, runtime, caches, audit):
             continue
-        from_ts = float(metadata.episode_cols[f"videos/{video_key}/from_timestamp"][record.row])
-        to_ts = float(metadata.episode_cols[f"videos/{video_key}/to_timestamp"][record.row])
-        segment = (from_ts, to_ts - from_ts) if 0.0 <= from_ts < to_ts else None
         review_video_content_if_requested(
             video_key, video_path, segment, config, runtime, caches, audit
         )
@@ -1352,6 +1450,9 @@ def build_summary(
     return {
         "dataset": str(config.root),
         "dataset_fingerprint": fingerprint,
+        "audit_script_version": __version__,
+        "audit_time_utc": datetime.now(timezone.utc).isoformat(),
+        "workers": config.workers,
         "status": "fail" if global_errors or drop else "pass_with_review" if review else "pass",
         "policy": "full_conservative_quality_audit",
         "global_errors": global_errors,
@@ -1469,7 +1570,7 @@ def print_audit_summary(config: AuditConfig, audits: list[EpisodeQuality], summa
 
 
 def run_audit(config: AuditConfig) -> int:
-    missing = [f"missing_required_path:{path}" for path in required_dataset_paths(config.root) if not path.exists()]
+    missing = missing_required_paths(config.root)
     if missing:
         return write_failure(config.out_dir, config.root, missing)
 
@@ -1482,6 +1583,7 @@ def run_audit(config: AuditConfig) -> int:
     global_errors.extend(validate_feedback_global(config, metadata))
     runtime = resolve_runtime(config)
     caches = AuditCaches()
+    prewarm_video_caches(config, metadata, runtime, caches)
     state = AuditState()
 
     for row in range(metadata.episodes.num_rows):
@@ -1532,6 +1634,7 @@ def audit_dataset(
     semantic_view_disagreement_threshold: float = 0.30,
     semantic_uncertainty_threshold: float = 0.15,
     semantic_counterfactual_margin_threshold: float = 0.10,
+    workers: int = 1,
 ) -> int:
     """Run the quality audit; kept for compatibility with existing utility scripts."""
     if not 0.0 <= semantic_review_threshold <= 1.0:
@@ -1567,6 +1670,7 @@ def audit_dataset(
         semantic_view_disagreement_threshold=semantic_view_disagreement_threshold,
         semantic_uncertainty_threshold=semantic_uncertainty_threshold,
         semantic_counterfactual_margin_threshold=semantic_counterfactual_margin_threshold,
+        workers=workers,
     )
     return run_audit(config)
 
@@ -1587,7 +1691,7 @@ def dataset_fingerprint(root: Path) -> str:
         root / "meta" / "info.json",
         root / "meta" / "stats.json",
         root / "meta" / "tasks.parquet",
-        root / "meta" / "episodes" / "chunk-000" / "file-000.parquet",
+        *episode_metadata_paths(root),
     ]
     for path in metadata_files:
         relative = path.relative_to(root).as_posix()
@@ -1689,11 +1793,7 @@ def run_semantic_reuse(config: AuditConfig, report_path: Path) -> int:
     """Reuse a fingerprint-matched structural report and rerun only semantics."""
     if config.semantic_evaluator is None:
         raise ValueError("semantic reuse mode requires a configured semantic evaluator")
-    missing = [
-        f"missing_required_path:{path}"
-        for path in required_dataset_paths(config.root)
-        if not path.exists()
-    ]
+    missing = missing_required_paths(config.root)
     if missing:
         return write_failure(config.out_dir, config.root, missing)
     if not report_path.exists():
@@ -1854,6 +1954,12 @@ def main() -> None:
     parser.add_argument("--video-sample-stride", type=int, default=300)
     parser.add_argument("--depth-sample-frames", type=int, default=8)
     parser.add_argument("--duplicate-check", choices=["none", "trajectory"], default="trajectory")
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=max(1, min(4, os.cpu_count() or 1)),
+        help="parallel ffprobe/ffmpeg calls for unique video files before the episode loop",
+    )
     parser.add_argument(
         "--motion-check",
         choices=["none", "signature"],
@@ -2025,6 +2131,7 @@ def main() -> None:
             semantic_view_disagreement_threshold=args.semantic_view_disagreement_threshold,
             semantic_uncertainty_threshold=args.semantic_uncertainty_threshold,
             semantic_counterfactual_margin_threshold=args.semantic_counterfactual_margin_threshold,
+            workers=args.workers,
         )
     )
 

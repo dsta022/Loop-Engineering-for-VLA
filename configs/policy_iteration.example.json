@@ -8,22 +8,35 @@
   "approval_file": "./policy_iteration.approval.example.json",
   "plugins": {
     "trainer": {
-      "spec": "my_policy_backend:create_trainer",
-      "init": {},
+      "spec": "policy_backends.command_trainer:create_trainer",
+      "init": {
+        "command": [
+          "python", "-m", "lerobot.scripts.train",
+          "--dataset.repo_id={training_dataset}",
+          "--policy.type=act",
+          "--output_dir={output_dir}",
+          "--steps={steps}"
+        ],
+        "checkpoint": "{output_dir}/checkpoints/last/pretrained_model"
+      },
       "request": {
-        "epochs": 10
+        "steps": 20000
       }
     },
     "evaluator": {
-      "spec": "my_policy_backend:create_evaluator",
-      "init": {},
-      "request": {
-        "real_robot_trials": 20
-      }
+      "spec": "policy_backends.offline_evaluator:create_evaluator",
+      "init": {
+        "pass_threshold": 0.9,
+        "evaluator_config": {"device": "cuda", "anchors": 6, "eval_horizon": 10},
+        "extra_metrics": {"intervention_rate": 0.1, "critical_failures": 0}
+      },
+      "request": {}
     },
     "deployer": {
-      "spec": "my_policy_backend:create_deployer",
-      "init": {},
+      "spec": "policy_backends.filesystem_deployer:create_deployer",
+      "init": {
+        "target_root": "../deployments"
+      },
       "request": {}
     }
   },

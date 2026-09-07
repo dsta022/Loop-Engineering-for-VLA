@@ -40,15 +40,18 @@ from policy_improvement.contracts import (
 )
 from policy_improvement.intervention import (
     CapabilityHandoverAdapter,
+    HandoverAdapter,
     InterventionCommand,
     InterventionController,
     InterventionEventQueue,
     InterventionKeyConfig,
+    PositionMatchHandoverAdapter,
     create_intervention_key_listener,
 )
 
 from .config import RecordConfig
 from .dataset.writer import LeRobotDatasetWriter
+from .display import FramePreview
 from .policy_runner import build_policy_runner
 from .session import build_robot, build_teleop, build_writer
 from .teleop.keyboard import should_attempt_keyboard_listener
@@ -81,6 +84,11 @@ class FeedbackCollectionConfig:
     buffer_memory_mb: float = 2048.0
     require_feedback_alignment: bool = True
     synchronization_seconds: float = 0.5
+    # capability: actuated leader driven to the follower pose (default)
+    # position_match: passive leader; the operator matches the follower by hand
+    handover: str = "capability"
+    handover_tolerance: float = 3.0
+    handover_timeout_s: float = 30.0
     automatic_trigger: AutomaticTriggerConfig = field(default_factory=AutomaticTriggerConfig)
 
     @classmethod
@@ -99,7 +107,20 @@ class FeedbackCollectionConfig:
             post_trigger_seconds=float(auto.get("post_trigger_seconds", 5.0)),
         )
         CaptureMode(cfg.mode)
+        if cfg.handover not in {"capability", "position_match"}:
+            raise ValueError("feedback.handover must be 'capability' or 'position_match'")
         return cfg
+
+
+def build_handover_adapter(fb_cfg: "FeedbackCollectionConfig") -> HandoverAdapter:
+    if fb_cfg.handover == "position_match":
+        return PositionMatchHandoverAdapter(
+            tolerance=fb_cfg.handover_tolerance, timeout_seconds=fb_cfg.handover_timeout_s
+        )
+    return CapabilityHandoverAdapter(
+        synchronization_seconds=fb_cfg.synchronization_seconds,
+        require_feedback_alignment=fb_cfg.require_feedback_alignment,
+    )
 
 
 @dataclass(frozen=True)
@@ -188,10 +209,8 @@ def run_feedback_loop(*, cfg, fb_cfg, robot, teleop, writer, policy_runner, side
     task = cfg.dataset.single_task
     source_policy = fb_cfg.source_policy or (cfg.policy.path if cfg.policy else "") or ""
     controller = InterventionController()
-    handover = CapabilityHandoverAdapter(
-        synchronization_seconds=fb_cfg.synchronization_seconds,
-        require_feedback_alignment=fb_cfg.require_feedback_alignment,
-    )
+    handover = build_handover_adapter(fb_cfg)
+    preview = FramePreview(list(cfg.robot.cameras), enabled=cfg.display_data, title="feedback")
     events = InterventionEventQueue()
     listener = None
     if fb_cfg.keyboard_enabled and should_attempt_keyboard_listener():
@@ -316,6 +335,7 @@ def run_feedback_loop(*, cfg, fb_cfg, robot, teleop, writer, policy_runner, side
                     flush_event_buffer(signal)
 
             observation = robot.get_observation()
+            preview.show(observation)
             phase = controller.phase
             if phase == ControlPhase.AUTONOMOUS:
                 policy_action = policy_runner.select_action(observation, task=task)
@@ -379,6 +399,7 @@ def run_feedback_loop(*, cfg, fb_cfg, robot, teleop, writer, policy_runner, side
         if frames and controller.phase == ControlPhase.AUTONOMOUS:
             finish_episode("session_end")
     finally:
+        preview.close()
         if trigger_monitor is not None:
             trigger_monitor.close()
         if listener is not None:

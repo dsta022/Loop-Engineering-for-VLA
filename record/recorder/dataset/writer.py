@@ -19,6 +19,7 @@ small numeric columns and running image-stat accumulators are kept in memory.
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -28,7 +29,12 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from utils.dataset_io import write_json
-from utils.dataset_metadata import build_stats_json, chunk_index_for, file_index_in_chunk
+from utils.dataset_metadata import (
+    build_stats_json,
+    chunk_index_for,
+    file_index_in_chunk,
+    read_episode_metadata,
+)
 
 from .depth_sidecar import (
     build_depth_recording_manifest,
@@ -70,8 +76,10 @@ class LeRobotDatasetWriter:
         *,
         vcodec: str = "libsvtav1",
         encoder_threads: int | None = None,
+        resume: bool = False,
     ):
         self.root = Path(root)
+        self.resume = bool(resume)
         self.repo_id = repo_id
         self.fps = int(fps)
         self.robot_type = robot_type
@@ -98,10 +106,48 @@ class LeRobotDatasetWriter:
 
     # -- lifecycle --------------------------------------------------------- #
     def create(self) -> None:
+        info_path = self.root / "meta" / "info.json"
+        if info_path.exists():
+            if not self.resume:
+                raise FileExistsError(
+                    f"dataset already exists at {self.root}; pass --resume=true to append "
+                    "episodes to it, or choose another dataset.root"
+                )
+            self._load_existing(info_path)
+        elif any((self.root / "data").rglob("*.parquet")):
+            raise FileExistsError(
+                f"{self.root} holds an unfinished recording (data files without meta/info.json); "
+                "remove it or choose another dataset.root"
+            )
         for sub in ("data", "videos", "meta"):
             (self.root / sub).mkdir(parents=True, exist_ok=True)
         if self.depth_keys:
             (self.root / "depth_sidecar").mkdir(parents=True, exist_ok=True)
+
+    def _load_existing(self, info_path: Path) -> None:
+        """Continue an existing dataset: episode numbering, tasks, and metadata rows."""
+        info = json.loads(info_path.read_text(encoding="utf-8"))
+        if info.get("features") != self.features:
+            raise ValueError(
+                "cannot resume: the existing dataset's features differ from the current "
+                "camera/robot configuration"
+            )
+        if int(info.get("fps", -1)) != self.fps:
+            raise ValueError(f"cannot resume: existing fps {info.get('fps')} != configured {self.fps}")
+        tasks = pq.read_table(self.root / "meta" / "tasks.parquet").to_pylist()
+        self._tasks = {str(row["task"]): int(row["task_index"]) for row in tasks}
+        self._episode_rows = read_episode_metadata(self.root).to_pylist()
+        self.total_episodes = int(info["total_episodes"])
+        self.total_frames = int(info["total_frames"])
+        if len(self._episode_rows) != self.total_episodes:
+            raise ValueError(
+                f"cannot resume: {len(self._episode_rows)} episode metadata rows but "
+                f"info.json declares {self.total_episodes} episodes"
+            )
+        logger.info(
+            "resuming %s at episode %d (%d frames, %d tasks)",
+            self.root, self.total_episodes, self.total_frames, len(self._tasks),
+        )
 
     def _reset_episode(self) -> None:
         self._started = False

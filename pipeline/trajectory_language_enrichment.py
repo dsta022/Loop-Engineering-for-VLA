@@ -10,6 +10,15 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
+import sys
+
+# Allow `python ./pipeline/trajectory_language_enrichment.py` to run as a plain script: the repo-root
+# packages must be importable without installing the project first.
+if __package__ in (None, ""):
+    _REPO_ROOT = str(Path(__file__).resolve().parents[1])
+    if _REPO_ROOT not in sys.path:
+        sys.path.insert(0, _REPO_ROOT)
+
 from pipeline.data_quality_audit import (
     AuditConfig,
     DatasetMetadata,

@@ -14,10 +14,20 @@ from typing import Any
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+import sys
+
+# Allow `python ./pipeline/feedback_dataset_build.py` to run as a plain script: the repo-root
+# packages must be importable without installing the project first.
+if __package__ in (None, ""):
+    _REPO_ROOT = str(Path(__file__).resolve().parents[1])
+    if _REPO_ROOT not in sys.path:
+        sys.path.insert(0, _REPO_ROOT)
+
 from pipeline.dataset_clean_build import build_clean_dataset
 from pipeline.dataset_merge import run_merge_paths
 from policy_improvement.contracts import ControlPhase, FeedbackSidecar
 from utils.dataset_io import read_json
+from utils.dataset_metadata import read_episode_metadata
 from utils.quality_utils import parse_episode_list
 
 
@@ -143,10 +153,7 @@ def verify_feedback_sidecar(
 
 
 def dataset_episode_lengths(dataset: Path) -> list[int]:
-    table = pq.read_table(
-        dataset / "meta" / "episodes" / "chunk-000" / "file-000.parquet",
-        columns=["episode_index", "length"],
-    )
+    table = read_episode_metadata(dataset, columns=["episode_index", "length"])
     rows = sorted(
         zip(table["episode_index"].to_pylist(), table["length"].to_pylist()),
         key=lambda item: int(item[0]),

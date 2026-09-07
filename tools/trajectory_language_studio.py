@@ -9,8 +9,11 @@ import threading
 from pathlib import Path
 from typing import Any
 
-import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+try:
+    import tkinter as tk
+    from tkinter import filedialog, messagebox, ttk
+except ImportError:  # headless interpreters can still import the command builder
+    tk = None  # type: ignore[assignment]
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -281,6 +284,8 @@ class TrajectoryLanguageStudio:
 
 
 def main() -> None:
+    if tk is None:
+        raise SystemExit("tkinter is required to open the Trajectory Language Studio window")
     root = tk.Tk()
     TrajectoryLanguageStudio(root)
     root.mainloop()

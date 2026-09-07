@@ -1,0 +1,13 @@
+# Normalize line endings in the repository; the working tree follows each
+# contributor's core.autocrlf setting.
+* text=auto
+*.sh text eol=lf
+
+# Never touch binary payloads.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.mp4 binary
+*.woff2 binary
+*.parquet binary
+*.bundle binary

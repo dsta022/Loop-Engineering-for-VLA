@@ -1,0 +1,73 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "loop-engineering-for-vla"
+dynamic = ["version"]
+description = "Collect, merge, audit, enrich, and iteratively improve multimodal LeRobot datasets for vision-language-action models."
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+authors = [{name = "Derek-X"}]
+keywords = ["lerobot", "vla", "robotics", "dataset", "audit", "rgb-d", "depth"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+  "numpy>=2.0,<2.3",
+  "pyarrow>=14.0",
+  "opencv-python-headless>=4.9,<4.14",
+  "huggingface-hub>=1.0,<2.0",
+  "hf-xet>=1.1",
+  "Pillow>=10.0,<13.0",
+]
+
+[project.optional-dependencies]
+# Framework-free recorder (SO-100/SO-101 arms, UVC cameras). Torch-free.
+record = ["pyyaml>=6", "pynput>=1.7", "feetech-servo-sdk>=1.0", "pyserial>=3.5"]
+realsense = ["pyrealsense2"]
+orbbec = ["pyorbbecsdk2>=2.0.15,<2.1"]
+# Policy runtime for the VLA checkpoint evaluator, feedback_record, and the
+# offline policy evaluator backend.
+policy = ["lerobot"]
+dev = ["pyyaml>=6"]
+
+[project.urls]
+Homepage = "https://dsta022.github.io/Loop-Engineering-for-VLA/"
+Repository = "https://github.com/dsta022/Loop-Engineering-for-VLA"
+Dataset = "https://huggingface.co/datasets/DerekLX/lerobot_derek_depth"
+Changelog = "https://github.com/dsta022/Loop-Engineering-for-VLA/blob/main/CHANGELOG.md"
+
+[project.scripts]
+vla-audit = "pipeline.data_quality_audit:main"
+vla-merge = "pipeline.dataset_merge:main"
+vla-clean = "pipeline.dataset_clean_build:main"
+vla-enrich = "pipeline.trajectory_language_enrichment:main"
+vla-feedback-build = "pipeline.feedback_dataset_build:main"
+vla-iterate = "pipeline.policy_iteration:main"
+vla-push = "pipeline.hf_push:main"
+vla-completeness = "tools.dataset_completeness_check:main"
+vla-depth-vis = "tools.depth_visualize:main"
+vla-calibrate = "tools.threshold_calibration:main"
+vla-task-studio = "tools.task_semantic_studio:main"
+vla-language-studio = "tools.trajectory_language_studio:main"
+
+[tool.setuptools]
+packages = [
+  "pipeline",
+  "utils",
+  "tools",
+  "policy_improvement",
+  "semantic_backends",
+  "language_backends",
+  "policy_backends",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "utils.version.__version__"}

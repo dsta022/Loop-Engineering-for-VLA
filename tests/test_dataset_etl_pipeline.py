@@ -392,7 +392,7 @@ class LeRobotPipelineTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, expected_error):
                     EpisodeDataReader(dataset).read_episode(episode)
 
-    def test_merge_rejects_multi_shard_episode_metadata_before_replacing_output(self) -> None:
+    def test_merge_rejects_duplicated_episode_rows_across_shards_before_replacing_output(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             dataset = write_aggregated_rgb_dataset(root, "aggregated_dataset")
@@ -406,7 +406,7 @@ class LeRobotPipelineTests(unittest.TestCase):
             marker = merged / "existing-output.txt"
             marker.write_text("preserve me", encoding="utf-8")
 
-            with self.assertRaisesRegex(ValueError, "requires one episode metadata shard"):
+            with self.assertRaisesRegex(ValueError, "row count mismatch"):
                 merge_datasets(
                     src_root=root,
                     out_dir=merged,

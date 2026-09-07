@@ -77,6 +77,8 @@ class TaskSemanticProfileTests(unittest.TestCase):
             python_executable="python",
         )
         self.assertEqual(command[0], "python")
+        self.assertTrue(Path(command[1]).is_file(), command[1])
+        self.assertEqual(Path(command[1]).name, "data_quality_audit.py")
         self.assertIn("--task-profile-dir", command)
         self.assertIn("--semantic-evaluator", command)
         self.assertIn("--semantic-failure-threshold", command)

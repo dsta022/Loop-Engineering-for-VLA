@@ -13,10 +13,6 @@ pyorbbecsdk2>=2.0.15,<2.1
 feetech-servo-sdk>=1.0,<2.0
 pynput>=1.7.8,<1.9
 pyserial>=3.5,<4.0
-rerun-sdk>=0.21
-av>=15.0,<16.0
-imageio[ffmpeg]>=2.34,<3.0
-jsonlines>=4.0,<5.0
 
 # Optional: the built-in VLA-checkpoint semantic evaluator
 # (semantic_backends.vla_checkpoint_evaluator) runs a lerobot policy and needs

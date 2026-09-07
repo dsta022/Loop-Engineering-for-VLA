@@ -253,6 +253,7 @@ class TrajectoryLanguageEnrichmentTests(unittest.TestCase):
             python_executable="python",
         )
         self.assertIn("trajectory_language_enrichment.py", command[1])
+        self.assertTrue(Path(command[1]).is_file(), command[1])
         self.assertIn("--approved-episodes", command)
         self.assertIn("--task-profile-dir", command)
         self.assertIn("--overwrite", command)

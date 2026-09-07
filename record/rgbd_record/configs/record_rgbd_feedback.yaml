@@ -67,6 +67,12 @@ feedback:
   buffer_memory_mb: 2048
   require_feedback_alignment: true
   synchronization_seconds: 0.5
+  # capability: actuated leader is driven to the follower pose before takeover.
+  # position_match: passive leader; the operator moves it by hand and control
+  # transfers once every joint is within handover_tolerance of the follower.
+  handover: capability
+  handover_tolerance: 3.0
+  handover_timeout_s: 30
   automatic_trigger:
     plugin: null
     config_path: null

@@ -18,6 +18,15 @@ from typing import Any
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+import sys
+
+# Allow `python ./pipeline/dataset_clean_build.py` to run as a plain script: the repo-root
+# packages must be importable without installing the project first.
+if __package__ in (None, ""):
+    _REPO_ROOT = str(Path(__file__).resolve().parents[1])
+    if _REPO_ROOT not in sys.path:
+        sys.path.insert(0, _REPO_ROOT)
+
 from utils.dataset_io import copy_file, copy_tree, find_env_executable, prepare_output_dir, read_json, safe_rel_path, write_json
 from utils.dataset_metadata import (
     CANONICAL_DATA_PATH,
@@ -28,12 +37,14 @@ from utils.dataset_metadata import (
     feature_names_by_dtype,
     file_index_in_chunk,
     make_episode_row,
+    read_episode_metadata,
     rewrite_data_table,
     validate_full_dataset,
     video_expected_codec,
 )
 from utils.media_utils import run_ffmpeg_trim
 from utils.quality_utils import default_drop_list, load_quality_rows, parse_episode_list
+from utils.version import __version__
 
 
 DEFAULT_VIDEO_CRF = 30
@@ -141,7 +152,7 @@ def load_clean_plan(config: CleanConfig) -> CleanPlan:
     drop_episodes = parse_episode_list(config.drop_list)
     keep_episodes = kept_episode_indices(drop_episodes, total_episodes)
 
-    episodes_table = pq.read_table(src_dataset / "meta" / "episodes" / "chunk-000" / "file-000.parquet")
+    episodes_table = read_episode_metadata(src_dataset)
     if episodes_table.num_rows != total_episodes:
         raise ValueError(f"episode metadata row count mismatch: {episodes_table.num_rows}!={total_episodes}")
     episode_schema = episodes_table.schema
@@ -436,10 +447,34 @@ def write_clean_metadata(config: CleanConfig, plan: CleanPlan, state: CleanState
     return episodes_table_out, tasks_table_out
 
 
+def load_audit_summary(drop_list: Path) -> dict[str, Any]:
+    """Read the quality_summary.json written beside the drop list, if any."""
+    summary_path = drop_list.parent / "quality_summary.json"
+    if not summary_path.is_file():
+        return {}
+    try:
+        payload = read_json(summary_path)
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
 def write_cleaning_manifest(config: CleanConfig, plan: CleanPlan, state: CleanState) -> None:
     quality_rows = load_quality_rows(config.drop_list)
+    audit_summary = load_audit_summary(config.drop_list)
+    reviewed_episodes = sorted(
+        episode for episode, row in quality_rows.items() if row.get("status", "") == "review"
+    )
     manifest = {
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
+        "build_tool_version": __version__,
+        "audit_script_version": audit_summary.get("audit_script_version"),
+        "audit_time": audit_summary.get("audit_time_utc"),
+        "audit_summary": (
+            str(config.drop_list.parent / "quality_summary.json") if audit_summary else None
+        ),
+        "thresholds": audit_summary.get("thresholds"),
+        "reviewed_episodes": reviewed_episodes,
         "source_dataset": str(config.src_dataset),
         "output_dataset": str(config.out_dir.resolve()),
         "drop_list": str(config.drop_list.resolve()),

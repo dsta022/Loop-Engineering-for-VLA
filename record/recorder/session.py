@@ -72,6 +72,7 @@ def build_writer(cfg: RecordConfig, robot: SOFollower) -> LeRobotDatasetWriter:
         robot.motor_names,
         vcodec=cfg.dataset.vcodec,
         encoder_threads=cfg.dataset.encoder_threads,
+        resume=cfg.resume,
     )
     writer.create()
     return writer

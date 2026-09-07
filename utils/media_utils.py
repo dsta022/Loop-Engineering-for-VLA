@@ -147,6 +147,43 @@ def unfilter_png_scanlines(raw: bytes, width: int, height: int, bit_depth: int, 
 
 
 def read_png_array(path: Path) -> np.ndarray:
+    """Decode a PNG to an (H, W, C) array.
+
+    OpenCV decodes in C when it is installed; the pure-Python reference
+    decoder below is the fallback and the source of the structured error
+    messages, so a file OpenCV rejects still fails with a specific reason.
+    """
+    fast = read_png_with_cv2(path)
+    if fast is not None:
+        return fast
+    return read_png_pure_python(path)
+
+
+def read_png_with_cv2(path: Path) -> np.ndarray | None:
+    try:
+        import cv2
+    except ImportError:
+        return None
+    try:
+        payload = np.fromfile(str(path), dtype=np.uint8)
+    except OSError:
+        return None
+    if payload.size == 0:
+        return None
+    arr = cv2.imdecode(payload, cv2.IMREAD_UNCHANGED)
+    if arr is None:
+        return None
+    if arr.ndim == 2:
+        return arr[:, :, None]
+    if arr.shape[2] == 3:
+        return cv2.cvtColor(arr, cv2.COLOR_BGR2RGB)
+    if arr.shape[2] == 4:
+        return cv2.cvtColor(arr, cv2.COLOR_BGRA2RGBA)
+    return arr
+
+
+def read_png_pure_python(path: Path) -> np.ndarray:
+    """Standard-library PNG decoder used when OpenCV is absent or refuses a file."""
     with path.open("rb") as handle:
         if handle.read(8) != PNG_SIGNATURE:
             raise ValueError("bad_png_signature")

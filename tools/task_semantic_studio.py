@@ -10,14 +10,24 @@ import threading
 from pathlib import Path
 from typing import Any
 
-import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+try:
+    import tkinter as tk
+    from tkinter import filedialog, messagebox, ttk
+except ImportError:  # headless interpreters can still import the command builder
+    tk = None  # type: ignore[assignment]
+
+# Allow `python ./tools/task_semantic_studio.py` to run as a plain script: the repo-root
+# packages must be importable without installing the project first.
+if __package__ in (None, ""):
+    _REPO_ROOT = str(Path(__file__).resolve().parents[1])
+    if _REPO_ROOT not in sys.path:
+        sys.path.insert(0, _REPO_ROOT)
 
 from utils.task_description_parser import load_parser, load_parser_config, normalize_parser_result
 from utils.task_semantic_profile import TaskSemanticProfile
 
 
-REPO_ROOT = Path(__file__).resolve().parent
+REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PARSER = "utils.task_description_parser:HeuristicTaskDescriptionParser"
 
 
@@ -41,7 +51,7 @@ def build_audit_command(
         raise ValueError("review threshold must not exceed pass threshold")
     command = [
         python_executable,
-        str(REPO_ROOT / "data_quality_audit.py"),
+        str(REPO_ROOT / "pipeline" / "data_quality_audit.py"),
         str(dataset),
         "--semantic-evaluator",
         evaluator_spec.strip(),
@@ -344,6 +354,8 @@ class TaskSemanticStudio:
 
 
 def main() -> None:
+    if tk is None:
+        raise SystemExit("tkinter is required to open the Task Semantic Studio window")
     root = tk.Tk()
     TaskSemanticStudio(root)
     root.mainloop()

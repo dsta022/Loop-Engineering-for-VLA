@@ -332,6 +332,89 @@ class CapabilityHandoverAdapter:
             disable_torque()
 
 
+@dataclass
+class PositionMatchHandoverAdapter:
+    """Handover for passive leader arms that cannot be driven to a pose.
+
+    The follower keeps holding its last commanded position while the operator
+    moves the leader by hand. Control is transferred only once every leader
+    joint is within ``tolerance`` of the follower, so the takeover never sends
+    the follower an unverified jump. The leader's torque is never changed.
+    ``tolerance`` is expressed in the action units of the arm (degrees with
+    ``use_degrees: true``, otherwise the normalized range).
+    """
+
+    tolerance: float = 3.0
+    timeout_seconds: float = 30.0
+    poll_interval_seconds: float = 0.05
+    progress_interval_seconds: float = 1.0
+
+    def prepare_takeover(self, robot: Any, teleop: Any, last_action: Any) -> None:
+        if self.tolerance <= 0 or self.timeout_seconds <= 0:
+            raise ValueError("tolerance and timeout_seconds must be positive")
+        get_action = getattr(teleop, "get_action", None)
+        if not callable(get_action):
+            raise RuntimeError("teleoperator does not expose get_action(); cannot verify alignment")
+        target = _numeric_mapping(last_action) or _follower_positions(robot)
+        if not target:
+            raise RuntimeError("cannot determine the follower pose the leader must match")
+        deadline = time.monotonic() + float(self.timeout_seconds)
+        next_report = 0.0
+        while True:
+            current = _numeric_mapping(get_action())
+            if set(current) != set(target):
+                raise RuntimeError(
+                    "leader and follower joint names differ; a hardware-specific "
+                    "HandoverAdapter or a rename map is required"
+                )
+            offsets = {key: abs(current[key] - target[key]) for key in target}
+            worst_key = max(offsets, key=offsets.__getitem__)
+            worst = offsets[worst_key]
+            if worst <= self.tolerance:
+                logger.info("leader aligned with follower (largest offset %.2f on %s)", worst, worst_key)
+                return
+            now = time.monotonic()
+            if now >= deadline:
+                raise RuntimeError(
+                    f"leader not aligned within {self.timeout_seconds:.0f}s; "
+                    f"largest offset {worst:.2f} on {worst_key} (tolerance {self.tolerance})"
+                )
+            if now >= next_report:
+                logger.info(
+                    "move the leader to match the follower: %s is off by %.2f (tolerance %.2f)",
+                    worst_key, worst, self.tolerance,
+                )
+                next_report = now + max(float(self.progress_interval_seconds), 0.1)
+            time.sleep(max(float(self.poll_interval_seconds), 0.0))
+
+    def begin_human_control(self, robot: Any, teleop: Any) -> None:
+        return None
+
+    def end_human_control(self, robot: Any, teleop: Any) -> None:
+        return None
+
+    def resume_autonomous(self, robot: Any, teleop: Any) -> None:
+        return None
+
+
+def _follower_positions(robot: Any) -> dict[str, float]:
+    """Current follower joint positions as an action-style mapping."""
+    bus = getattr(robot, "bus", None)
+    reader = getattr(bus, "read_present_position", None)
+    if callable(reader):
+        try:
+            return {f"{motor}.pos": float(value) for motor, value in reader().items()}
+        except Exception:  # noqa: BLE001 - fall through to the observation path
+            pass
+    get_observation = getattr(robot, "get_observation", None)
+    if not callable(get_observation):
+        return {}
+    observation = get_observation()
+    if not isinstance(observation, Mapping):
+        return {}
+    return _numeric_mapping({key: value for key, value in observation.items() if str(key).endswith(".pos")})
+
+
 def _numeric_mapping(value: Any) -> dict[str, float]:
     if not isinstance(value, Mapping):
         return {}

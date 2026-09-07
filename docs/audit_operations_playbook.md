@@ -134,6 +134,9 @@ python .\pipeline\data_quality_audit.py .\lerobot_derek_depth `
    `approved_episodes.txt`，每行一个 episode 号），供语言标注阶段使用。
 4. 语义 pass 的高分 episode 也要**持续抽样人工核验**，防止分数未校准导致的
    假阳性。
+5. 把人工判定写成 `episode_index,label` 的 CSV 后，用
+   `python .	ools	hreshold_calibration.py --quality-report <报告目录> --labels <标签CSV>`
+   得到每条 review 规则的精确率/召回率和推荐的 failure/pass 阈值。
 
 ## 阶段 5：语言标注（只花在可用数据上）
 

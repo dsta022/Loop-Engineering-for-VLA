@@ -18,6 +18,15 @@ from typing import Any
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+import sys
+
+# Allow `python ./pipeline/dataset_merge.py` to run as a plain script: the repo-root
+# packages must be importable without installing the project first.
+if __package__ in (None, ""):
+    _REPO_ROOT = str(Path(__file__).resolve().parents[1])
+    if _REPO_ROOT not in sys.path:
+        sys.path.insert(0, _REPO_ROOT)
+
 from utils.dataset_io import copy_file, copy_tree, read_json, remove_tree_safely, safe_rel_path, write_json
 from utils.dataset_metadata import (
     CANONICAL_DATA_PATH,
@@ -29,6 +38,7 @@ from utils.dataset_metadata import (
     chunk_index_for,
     file_index_in_chunk,
     map_int_column,
+    read_episode_metadata,
     table_column_index,
     update_episode_metadata,
     validate_merge_source_dataset,
@@ -196,14 +206,7 @@ def source_dataset_paths(config: MergeConfig) -> list[Path]:
 def load_merge_source(path: Path) -> MergeSource:
     validate_merge_source_dataset(path)
     info = read_json(path / "meta" / "info.json")
-    episode_paths = sorted((path / "meta" / "episodes").glob("chunk-*/*.parquet"))
-    if len(episode_paths) != 1:
-        raise ValueError(
-            f"merge currently requires one episode metadata shard in {path.name}; "
-            f"found {len(episode_paths)}"
-        )
-
-    episodes_table = pq.read_table(episode_paths[0])
+    episodes_table = read_episode_metadata(path)
     required_columns = {
         "episode_index",
         "length",

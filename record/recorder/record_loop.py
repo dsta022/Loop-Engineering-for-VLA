@@ -14,6 +14,7 @@ import time
 
 from .config import RecordConfig
 from .dataset.writer import LeRobotDatasetWriter
+from .display import FramePreview
 from .teleop.keyboard import init_keyboard_listener
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,7 @@ def run_episode(
     control_time_s: float,
     policy_runner=None,
     max_frames: int | None = None,
+    preview: FramePreview | None = None,
 ) -> None:
     """Run one episode (record when ``writer`` is provided, else a reset phase)."""
     if policy_runner is not None:
@@ -50,6 +52,8 @@ def run_episode(
             break
 
         observation = robot.get_observation()
+        if preview is not None:
+            preview.show(observation)
         if policy_runner is not None:
             action = policy_runner.select_action(observation, task=task)
         elif teleop is not None:
@@ -82,6 +86,7 @@ def run_record_session(
 ) -> None:
     """Record ``cfg.dataset.num_episodes`` episodes with reset + keyboard control."""
     listener, events = init_keyboard_listener()
+    preview = FramePreview(list(cfg.robot.cameras), enabled=cfg.display_data)
     task = cfg.dataset.single_task
     fps = cfg.dataset.fps
     try:
@@ -95,7 +100,7 @@ def run_record_session(
             run_episode(
                 robot=robot, teleop=teleop, writer=writer, events=events,
                 fps=fps, task=task, control_time_s=cfg.dataset.episode_time_s,
-                policy_runner=policy_runner,
+                policy_runner=policy_runner, preview=preview,
             )
 
             if events["rerecord_episode"]:
@@ -112,12 +117,13 @@ def run_record_session(
                 run_episode(
                     robot=robot, teleop=teleop, writer=None, events=events,
                     fps=fps, task=task, control_time_s=cfg.dataset.reset_time_s,
-                    policy_runner=None,
+                    policy_runner=None, preview=preview,
                 )
 
             writer.save_episode()
             recorded += 1
     finally:
+        preview.close()
         writer.finalize() if writer.total_episodes > 0 else None
         if robot.is_connected:
             robot.disconnect()

@@ -28,6 +28,15 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - exercised only when OpenCV is absent.
     cv2 = None
 
+import sys
+
+# Allow `python ./tools/depth_visualize.py` to run as a plain script: the repo-root
+# packages must be importable without installing the project first.
+if __package__ in (None, ""):
+    _REPO_ROOT = str(Path(__file__).resolve().parents[1])
+    if _REPO_ROOT not in sys.path:
+        sys.path.insert(0, _REPO_ROOT)
+
 from utils.media_utils import read_png_array
 
 

@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Push a local real LeRobot dataset folder to Hugging Face Hub.
 
-Recommended token usage:
-  PowerShell: $env:HF_TOKEN="hf_your_write_token"
-  CMD:        set HF_TOKEN=hf_your_write_token
+Token resolution order:
+  1. the HF_TOKEN environment variable
+     (PowerShell: $env:HF_TOKEN="hf_..."; CMD: set HF_TOKEN=hf_...)
+  2. the token cached by `huggingface-cli login`
 
-You may also fill HF_WRITE_TOKEN below for local-only use, but do not commit a
-real Hugging Face token to a public repository.
+Tokens are never read from this source file, so nothing secret can be
+committed by accident.
 """
 
 from __future__ import annotations
@@ -16,6 +17,15 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+import sys
+
+# Allow `python ./pipeline/hf_push.py` to run as a plain script: the repo-root
+# packages must be importable without installing the project first.
+if __package__ in (None, ""):
+    _REPO_ROOT = str(Path(__file__).resolve().parents[1])
+    if _REPO_ROOT not in sys.path:
+        sys.path.insert(0, _REPO_ROOT)
 
 from utils.hf_upload_utils import (
     count_files_and_bytes,
@@ -46,7 +56,6 @@ from utils.hf_upload_utils import (
 #   videos/
 # ---------------------------------------------------------------------------
 HF_USERNAME = "dadm022"
-HF_WRITE_TOKEN = ""
 HF_DATASET_NAME = "determ_lerobot_rgb_depth_vla"
 
 DEFAULT_LOCAL_DATASET_DIR = Path("determ_lerobot_rgb_depth_vla")
@@ -70,14 +79,24 @@ class UploadConfig:
     dry_run: bool
 
 
+def cached_hub_token() -> str:
+    """Return the token stored by `huggingface-cli login`, or an empty string."""
+    try:
+        from huggingface_hub import get_token
+    except ImportError:
+        return ""
+    try:
+        return (get_token() or "").strip()
+    except Exception:  # noqa: BLE001 - any cache problem simply means "no token"
+        return ""
+
+
 def resolve_token() -> str:
-    token = os.environ.get("HF_TOKEN", "").strip()
-    if not token:
-        token = HF_WRITE_TOKEN.strip()
+    token = os.environ.get("HF_TOKEN", "").strip() or cached_hub_token()
     placeholder_tokens = {"", "hf_your_write_token", "your_token_here"}
     if not token or token in placeholder_tokens:
         raise SystemExit(
-            "No Hugging Face token found. Set HF_TOKEN in the shell or fill HF_WRITE_TOKEN in this script."
+            "No Hugging Face token found. Set HF_TOKEN in the shell or run `huggingface-cli login`."
         )
     if not token.startswith("hf_"):
         raise SystemExit("HF token does not look valid. A user access token normally starts with 'hf_'.")

@@ -404,15 +404,45 @@ def update_episode_metadata(
     return updated
 
 
+def episode_metadata_paths(root: Path) -> list[Path]:
+    """All episode metadata shards of a dataset, in chunk/file order."""
+    directory = root / "meta" / "episodes"
+    if not directory.is_dir():
+        return []
+    return sorted(directory.glob("chunk-*/file-*.parquet"))
+
+
+def read_episode_metadata(root: Path, columns: list[str] | None = None) -> pa.Table:
+    """Read every episode metadata shard into one table.
+
+    Recorded datasets keep a single shard, but long recordings and upstream
+    LeRobot tools may split the table across chunk-XXX/file-XXX.parquet files.
+    Tools that rewrite metadata write one shard back and set the
+    meta/episodes/chunk_index and file_index columns to zero.
+    """
+    paths = episode_metadata_paths(root)
+    if not paths:
+        raise FileNotFoundError(f"no episode metadata shards under {root / 'meta' / 'episodes'}")
+    tables = [pq.read_table(path, columns=columns) for path in paths]
+    if len(tables) == 1:
+        return tables[0]
+    return pa.concat_tables(tables, promote_options="default")
+
+
+def missing_episode_metadata(path: Path) -> list[str]:
+    if episode_metadata_paths(path):
+        return []
+    return [str(path / "meta" / "episodes" / "chunk-*" / "file-*.parquet")]
+
+
 def validate_merge_source_dataset(path: Path) -> None:
     required = [
         path / "meta" / "info.json",
         path / "meta" / "tasks.parquet",
         path / "meta" / "stats.json",
-        path / "meta" / "episodes" / "chunk-000" / "file-000.parquet",
         path / "data" / "chunk-000",
     ]
-    missing = [str(item) for item in required if not item.exists()]
+    missing = [str(item) for item in required if not item.exists()] + missing_episode_metadata(path)
     if missing:
         raise FileNotFoundError("missing required dataset files:\n" + "\n".join(missing))
 
@@ -422,10 +452,9 @@ def validate_full_dataset(path: Path) -> None:
         path / "meta" / "info.json",
         path / "meta" / "stats.json",
         path / "meta" / "tasks.parquet",
-        path / "meta" / "episodes" / "chunk-000" / "file-000.parquet",
         path / "data",
         path / "videos",
     ]
-    missing = [str(item) for item in required if not item.exists()]
+    missing = [str(item) for item in required if not item.exists()] + missing_episode_metadata(path)
     if missing:
         raise FileNotFoundError("missing required dataset paths:\n" + "\n".join(missing))
