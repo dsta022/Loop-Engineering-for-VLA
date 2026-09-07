@@ -7,7 +7,7 @@
 [![Python](https://img.shields.io/badge/Python-3.12%2B-blue)](https://www.python.org/)
 [![LeRobot](https://img.shields.io/badge/Data-LeRobot%20RGB%2FRGB--D-green)](https://github.com/huggingface/lerobot)
 
-Website: https://dsta022.github.io/Loop-Engineering-for-VLA/ served by GitHub Pages from [`docs/`](docs/) and redeployed by [`.github/workflows/pages.yml`](.github/workflows/pages.yml) on every push to `main` that touches it.
+Website: https://dsta022.github.io/Loop-Engineering-for-VLA/.
 
 ## Multimodal VLA Dataset Toolkit
 
