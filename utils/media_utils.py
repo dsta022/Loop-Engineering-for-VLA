@@ -326,27 +326,29 @@ def sample_video_file(
 ) -> tuple[np.ndarray | None, str]:
     """Sample strided frames, optionally restricted to a [start, start+duration) segment.
 
-    ``-vsync vfr`` is required: without it ffmpeg pads the select filter's output
-    back to the input frame rate by duplicating the first surviving frame, so the
-    ``-frames:v`` cap would return identical copies of frame 0 instead of strided
-    samples spanning the video.
+    Variable frame-rate output (``-fps_mode vfr``, or ``-vsync vfr`` on ffmpeg
+    older than 5.1) is required: without it ffmpeg pads the select filter's
+    output back to the input frame rate by duplicating the first surviving
+    frame, so the ``-frames:v`` cap would return identical copies of frame 0
+    instead of strided samples spanning the video. Recent ffmpeg builds have
+    removed ``-vsync`` entirely, so the modern flag is tried first.
     """
     stride = max(int(stride), 1)
     selector = f"eq(n\\,0)+not(mod(n\\,{stride}))"
-    cmd = [ffmpeg_path, "-hide_banner", "-nostdin", "-v", "error"]
+    prefix = [ffmpeg_path, "-hide_banner", "-nostdin", "-v", "error"]
     if start is not None and start > 0:
-        cmd += ["-ss", format_seconds(start)]
+        prefix += ["-ss", format_seconds(start)]
     if duration is not None:
         if duration <= 0:
             return None, "non_positive_video_segment_duration"
-        cmd += ["-t", format_seconds(duration)]
-    cmd += [
+        prefix += ["-t", format_seconds(duration)]
+    prefix += [
         "-i",
         str(video_path),
         "-vf",
         f"select='{selector}',scale={VIDEO_SAMPLE_WIDTH}:{VIDEO_SAMPLE_HEIGHT}",
-        "-vsync",
-        "vfr",
+    ]
+    suffix = [
         "-frames:v",
         str(sample_frames),
         "-pix_fmt",
@@ -355,7 +357,17 @@ def sample_video_file(
         "rawvideo",
         "-",
     ]
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    result = None
+    for vfr_args in (["-fps_mode", "vfr"], ["-vsync", "vfr"]):
+        result = subprocess.run(
+            [*prefix, *vfr_args, *suffix], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False
+        )
+        if result.returncode == 0:
+            break
+        stderr = result.stderr.decode("utf-8", errors="replace")
+        if "Unrecognized option" not in stderr or vfr_args[0].lstrip("-") not in stderr:
+            break
+    assert result is not None
     if result.returncode != 0:
         msg = result.stderr.decode("utf-8", errors="replace").strip() or "ffmpeg_file_sample_failed"
         return None, msg.replace("\r", " ").replace("\n", " ")[:500]

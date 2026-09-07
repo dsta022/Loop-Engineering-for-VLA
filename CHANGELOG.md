@@ -49,6 +49,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Video content sampling failed on ffmpeg builds that removed the `-vsync`
+  option; the audit now uses `-fps_mode vfr` and falls back to `-vsync vfr`
+  on ffmpeg older than 5.1.
 - Task Semantic Studio launched a non-existent script path when running the
   audit from the window.
 - The studios no longer require `tkinter` just to import their command
