@@ -17,9 +17,9 @@ jobs:
         python: ["3.12"]
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
           cache: pip
@@ -34,6 +34,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[record]"
       - name: Toolkit tests
-        run: python -m unittest discover -s tests
+        run: python .github/scripts/run_tests.py tests
       - name: Recorder tests
-        run: python -m unittest discover -s record/recorder/tests -t .
+        if: always()
+        run: python .github/scripts/run_tests.py record/recorder/tests .
