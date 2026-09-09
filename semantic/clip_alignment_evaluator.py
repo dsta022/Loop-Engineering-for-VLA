@@ -99,6 +99,12 @@ class ClipAlignmentEvaluator:
         return path
 
     def _select_segment(self, episode: SemanticEpisode):
+        """Pick which camera's video segment to score.
+
+        Uses the configured ``video_key`` if set, else the first available
+        segment. The audit may already have filtered ``episode.videos`` to a
+        profile's preferred keys before we get here.
+        """
         if not episode.videos:
             raise ValueError("episode has no video segments to score")
         if self.video_key is not None:
@@ -113,11 +119,19 @@ class ClipAlignmentEvaluator:
     # -- prompt construction ----------------------------------------------
 
     def _instruction_text(self, episode: SemanticEpisode) -> str:
+        """Join the episode's task strings into one instruction to align against."""
         return " ; ".join(text for text in episode.tasks if text.strip())
 
     def _stage_prompts(
         self, profile: Mapping[str, Any]
     ) -> tuple[list[str], list[str], list[float]] | None:
+        """Turn a Task Profile's stages into (names, text prompts, weights).
+
+        Each stage's ``observable_condition`` becomes a text prompt (via
+        ``prompt_template``) and its ``weight`` sets how much of the [0,1] progress
+        range that stage spans. Returns ``None`` — falling back to instruction-only
+        scoring — when there are no usable stages (missing condition, bad weight).
+        """
         stages = profile.get("stages") if isinstance(profile, Mapping) else None
         if not isinstance(stages, Sequence) or len(stages) == 0:
             return None
@@ -144,6 +158,16 @@ class ClipAlignmentEvaluator:
     def _stage_anchored_curve(
         self, image_features: np.ndarray, prompts: list[str], weights: list[float]
     ) -> tuple[list[float], np.ndarray]:
+        """Map frames to progress via which stage each frame most resembles.
+
+        For each frame: cosine-similarity to every stage prompt, a temperature-
+        scaled softmax over stages (a soft "which stage is this frame in"), then a
+        dot with each stage's *cumulative* weight fraction. So a frame that looks
+        like the last stage scores near 1, one that looks like the first scores
+        near that stage's small cumulative weight. Smooth, monotone-ish, in [0,1];
+        it does NOT force saturation, unlike the instruction-only curve. Returns
+        (curve, the smoothed per-frame/per-stage similarity matrix).
+        """
         text_features = self.backend.embed_texts(prompts)
         raw_similarity = image_features @ text_features.T  # (N, S)
         similarity = self._smooth(raw_similarity)
@@ -161,6 +185,14 @@ class ClipAlignmentEvaluator:
     def _instruction_curve(
         self, image_features: np.ndarray, instruction: str
     ) -> tuple[list[float], np.ndarray]:
+        """Fallback curve when there is no profile: per-frame similarity to the
+        instruction, min-max normalized across the episode.
+
+        Coarser than the stage-anchored curve and has a built-in artifact — min-max
+        forces some frame to exactly 1.0, which downstream reads as an early
+        saturation. Prefer a Task Profile when accuracy matters. Returns
+        (curve, the smoothed (N,1) similarity).
+        """
         text_features = self.backend.embed_texts([instruction])
         raw_similarity = image_features @ text_features.T  # (N, 1)
         similarity = self._smooth(raw_similarity)
@@ -230,6 +262,12 @@ class ClipAlignmentEvaluator:
     # -- protocol entry point ---------------------------------------------
 
     def evaluate(self, episode: SemanticEpisode) -> SemanticResult:
+        """The socket entry point: decode the episode's video segment, then score.
+
+        Sampling is split from scoring (``score_frames``) so tests and experiments
+        can feed frames directly. Raises on decode failure; the audit turns that
+        into a review, never a drop.
+        """
         segment = self._select_segment(episode)
         ffmpeg_path = self._resolve_ffmpeg()
         try:

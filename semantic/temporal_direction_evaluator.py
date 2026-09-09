@@ -128,6 +128,16 @@ class TemporalDirectionEvaluator:
         *,
         video_key: str = "",
     ) -> SemanticResult:
+        """Score how strongly the episode trends toward its goal over time.
+
+        Projects each frame embedding onto the start->goal text axis, then
+        rank-correlates that goal-alignment with frame order. The correlation is
+        reported in details["time_correlation"] (forward rises -> +, reversed
+        falls -> -); the dataset pass (directional_consensus_outliers) decides which
+        sign is "forward" and flags the minority. success_probability here assumes
+        rising==forward, but the CONSENSUS check is what actually decides reversal,
+        because a text anchor cannot know a task's polarity on its own.
+        """
         if frames.shape[0] < 3:
             raise RuntimeError(f"need >= 3 frames, got {frames.shape[0]}")
         start_text, goal_text = self._resolve_anchor(task_profile, tasks)
@@ -165,6 +175,7 @@ class TemporalDirectionEvaluator:
         )
 
     def evaluate(self, episode: SemanticEpisode) -> SemanticResult:
+        """Socket entry point: decode the video segment, then score its direction."""
         segment = self._select_segment(episode)
         ffmpeg_path = self._resolve_ffmpeg()
         try:

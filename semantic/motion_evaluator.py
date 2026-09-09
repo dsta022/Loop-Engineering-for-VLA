@@ -168,6 +168,11 @@ class MotionEvaluator:
         )
 
     def evaluate(self, episode: SemanticEpisode) -> SemanticResult:
+        """Socket entry point: score the episode's own motion, no model or video.
+
+        Prefers the measured state stream, falls back to the commanded action;
+        raises when neither is present so an ensemble can skip this child.
+        """
         trajectory = _prefer_stream(episode.motion)
         if trajectory is None:
             raise RuntimeError(

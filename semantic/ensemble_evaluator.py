@@ -68,6 +68,9 @@ class EnsembleEvaluator:
         self.name = "ensemble(" + ",".join(c.name for c in self.children) + ")"
 
     def _combine_scores(self, scores: list[float], weights: list[float]) -> float:
+        """Reduce the children's scores to one. ``min`` is conservative (any child
+        that sees a problem wins → maximizes failure recall, inherits every child's
+        false positives); ``mean``/``weighted`` average instead."""
         if self.combine == "min":
             return float(min(scores))
         if self.combine == "mean":
@@ -78,6 +81,11 @@ class EnsembleEvaluator:
         return float(sum(s * w for s, w in zip(scores, weights)) / total)
 
     def evaluate(self, episode: SemanticEpisode) -> SemanticResult:
+        """Run every child, skip the ones that can't (recording why), combine the
+        rest. Raises only if fewer than ``require`` children ran — that graceful
+        degradation is the point: the audit keeps working with whatever signals are
+        available (motion when there's no video, alignment when there's no motion).
+        """
         child_reports: list[dict[str, Any]] = []
         ok: list[tuple[EnsembleChild, SemanticResult]] = []
         for child in self.children:
