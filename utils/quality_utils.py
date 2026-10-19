@@ -36,6 +36,7 @@ class EpisodeQuality:
     semantic_failure_stage: str = ""
     semantic_progress_max_drop: float | None = None
     semantic_progress_idle_tail_ratio: float | None = None
+    semantic_time_correlation: float | None = None
     semantic_stage_timeline_source: str = ""
     semantic_motion_verbs: str = ""
     semantic_motion_gripper_transitions: int | None = None
@@ -183,6 +184,7 @@ def write_quality_outputs(out_dir: Path, audits: list[EpisodeQuality], summary: 
         "semantic_failure_stage",
         "semantic_progress_max_drop",
         "semantic_progress_idle_tail_ratio",
+        "semantic_time_correlation",
         "semantic_stage_timeline_source",
         "semantic_motion_verbs",
         "semantic_motion_gripper_transitions",
@@ -231,6 +233,9 @@ def write_quality_outputs(out_dir: Path, audits: list[EpisodeQuality], summary: 
                         ""
                         if audit.semantic_progress_idle_tail_ratio is None
                         else audit.semantic_progress_idle_tail_ratio
+                    ),
+                    "semantic_time_correlation": (
+                        "" if audit.semantic_time_correlation is None else audit.semantic_time_correlation
                     ),
                     "semantic_stage_timeline_source": audit.semantic_stage_timeline_source,
                     "semantic_motion_verbs": audit.semantic_motion_verbs,

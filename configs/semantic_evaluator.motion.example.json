@@ -1,0 +1,6 @@
+{
+  "still_fraction": 0.10,
+  "jerk_multiple": 8.0,
+  "curve_points": 32,
+  "min_total_path": 0.0
+}

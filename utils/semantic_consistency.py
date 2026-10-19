@@ -125,10 +125,20 @@ def analyze_progress_curve(curve: Sequence[float]) -> ProgressCurveMetrics | Non
     )
 
 
-def progress_curve_findings(metrics: ProgressCurveMetrics) -> tuple[str, ...]:
-    """Review reasons implied by the shape of a progress curve."""
+def progress_curve_findings(
+    metrics: ProgressCurveMetrics, *, include_regression: bool = True
+) -> tuple[str, ...]:
+    """Review reasons implied by the shape of a progress curve.
+
+    ``include_regression`` fires the regression finding against the fixed
+    ``PROGRESS_REGRESSION_DROP`` floor. The audit passes ``False`` so the
+    regression decision is deferred to a dataset-relative threshold computed over
+    the whole population (see ``apply_progress_regression_reviews``), the same way
+    action- and state-jump outliers are decided; other callers keep the standalone
+    fixed-threshold behavior.
+    """
     findings: list[str] = []
-    if metrics.points >= 2 and metrics.max_drop >= PROGRESS_REGRESSION_DROP:
+    if include_regression and metrics.points >= 2 and metrics.max_drop >= PROGRESS_REGRESSION_DROP:
         findings.append("semantic_progress_regression_review")
     if metrics.points >= PROGRESS_MIN_POINTS_FOR_IDLE:
         if (
@@ -145,6 +155,46 @@ def progress_curve_findings(metrics: ProgressCurveMetrics) -> tuple[str, ...]:
 
 
 # ---------------------------------------------------------------- stage timeline
+
+
+REVERSAL_MIN_MAGNITUDE = 0.15
+REVERSAL_MIN_POPULATION = 5
+
+
+def directional_consensus_outliers(
+    correlations: Sequence[float | None],
+    *,
+    min_magnitude: float = REVERSAL_MIN_MAGNITUDE,
+    min_population: int = REVERSAL_MIN_POPULATION,
+) -> set[int]:
+    """Flag episodes whose temporal direction opposes the dataset consensus.
+
+    A temporal-direction evaluator scores each episode's goal-alignment-vs-time
+    correlation, but a text anchor only fixes an *axis*, not which end is "done":
+    for one task a forward episode's alignment rises, for another it falls. Rather
+    than guess the polarity, read it from the population — training datasets are
+    mostly forward, so the consensus sign of the correlations *is* forward and a
+    reversed episode is the sign-minority. Label-free and dataset-relative, in the
+    same spirit as the audit's jump/duplicate outlier checks.
+
+    Returns indices whose correlation opposes the consensus sign with magnitude
+    >= ``min_magnitude`` (near-zero, directionless episodes are never flagged);
+    empty when fewer than ``min_population`` episodes carry a correlation.
+    """
+    values = [c for c in correlations if c is not None]
+    if len(values) < min_population:
+        return set()
+    consensus = float(np.median(values))
+    if consensus == 0.0:
+        return set()
+    consensus_sign = 1.0 if consensus > 0 else -1.0
+    flagged: set[int] = set()
+    for index, corr in enumerate(correlations):
+        if corr is None:
+            continue
+        if abs(corr) >= min_magnitude and (1.0 if corr > 0 else -1.0) != consensus_sign:
+            flagged.add(index)
+    return flagged
 
 
 @dataclass(frozen=True)
