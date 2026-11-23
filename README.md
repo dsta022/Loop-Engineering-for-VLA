@@ -510,12 +510,9 @@ pull-request checklist. Changes are tracked in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-The current release of the toolkit is licensed under the [MIT License](LICENSE).
-
-Starting with the next release, the toolkit code will use the
-[PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0).
-Commercial use of that release outside the uses permitted by PolyForm requires
-a separate license from the copyright holder.
+The toolkit code in this release is licensed under the
+[PolyForm Noncommercial License 1.0.0](LICENSE). Commercial use outside the
+purposes permitted by this license requires separate permission from the copyright holder.
 
 | Dataset | License |
 | --- | --- |
