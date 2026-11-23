@@ -6,7 +6,7 @@ Examples:
     python depth_visualize.py path/to/frame-000000.png
 
     # Whole directory (recursive)
-    python depth_visualize.py ~/.cache/huggingface/lerobot/DerekLX/lerobot_derek_depth/depth_sidecar
+    python depth_visualize.py ~/.cache/huggingface/lerobot/dadm022/determ_lerobot_rgb_depth_vla/depth_sidecar
 
     # Custom range + output dir
     python depth_visualize.py some_dir --vmin 350 --vmax 800 --out /tmp/depth_vis

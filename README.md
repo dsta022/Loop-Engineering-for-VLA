@@ -4,7 +4,7 @@
 
 [![Website](https://img.shields.io/badge/Website-dsta022.github.io-111111)](https://dsta022.github.io/Loop-Engineering-for-VLA/)
 [![Tests](https://github.com/dsta022/Loop-Engineering-for-VLA/actions/workflows/tests.yml/badge.svg)](https://github.com/dsta022/Loop-Engineering-for-VLA/actions/workflows/tests.yml)
-[![Hugging Face Dataset](https://img.shields.io/badge/Hugging%20Face-DerekLX%2Flerobot__derek__depth-yellow)](https://huggingface.co/datasets/DerekLX/lerobot_derek_depth)
+[![Hugging Face Dataset](https://img.shields.io/badge/Hugging%20Face-dadm022%2Fdeterm__lerobot__rgb__depth__vla-yellow)](https://huggingface.co/datasets/dadm022/determ_lerobot_rgb_depth_vla)
 [![Python](https://img.shields.io/badge/Python-3.12%2B-blue)](https://www.python.org/)
 [![LeRobot](https://img.shields.io/badge/Data-LeRobot%20RGB%2FRGB--D-green)](https://github.com/huggingface/lerobot)
 
@@ -44,7 +44,7 @@ and upload steps below. Three guiding rules run through every stage:
 ## Dataset
 
 The merged RGB-D VLA dataset is published on Hugging Face as
-[DerekLX/lerobot_derek_depth](https://huggingface.co/datasets/DerekLX/lerobot_derek_depth).
+[dadm022/determ_lerobot_rgb_depth_vla](https://huggingface.co/datasets/dadm022/determ_lerobot_rgb_depth_vla).
 Its root contains the LeRobot subdirectories directly:
 
 ```text
@@ -491,12 +491,12 @@ pull-request checklist. Changes are tracked in [CHANGELOG.md](CHANGELOG.md).
 ## Dataset Citation
 
 ```bibtex
-@dataset{dereklx_lerobot_derek_depth_2026,
-  author    = {DerekLX},
-  title     = {lerobot_derek_depth},
+@dataset{dadm022_determ_lerobot_rgb_depth_vla_2026,
+  author    = {dadm022},
+  title     = {determ_lerobot_rgb_depth_vla},
   year      = {2026},
   publisher = {Hugging Face},
-  url       = {https://huggingface.co/datasets/DerekLX/lerobot_derek_depth}
+  url       = {https://huggingface.co/datasets/dadm022/determ_lerobot_rgb_depth_vla}
 }
 ```
 

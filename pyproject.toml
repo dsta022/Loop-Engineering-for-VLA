@@ -41,7 +41,7 @@ dev = ["pyyaml>=6"]
 [project.urls]
 Homepage = "https://dsta022.github.io/Loop-Engineering-for-VLA/"
 Repository = "https://github.com/dsta022/Loop-Engineering-for-VLA"
-Dataset = "https://huggingface.co/datasets/DerekLX/lerobot_derek_depth"
+Dataset = "https://huggingface.co/datasets/dadm022/determ_lerobot_rgb_depth_vla"
 Changelog = "https://github.com/dsta022/Loop-Engineering-for-VLA/blob/main/CHANGELOG.md"
 
 [project.scripts]
