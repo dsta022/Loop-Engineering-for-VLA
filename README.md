@@ -510,4 +510,9 @@ pull-request checklist. Changes are tracked in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-This project is released under the [MIT License](LICENSE).
+The toolkit code is licensed under the [MIT License](LICENSE).
+
+| Dataset | License |
+| --- | --- |
+| [RGB-D dataset](https://huggingface.co/datasets/dadm022/determ_lerobot_rgb_depth_vla) | Apache-2.0 |
+| [RGB dataset](https://huggingface.co/datasets/dadm022/lerobot_rgb_vla) | MIT |
