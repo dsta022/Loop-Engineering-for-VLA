@@ -498,6 +498,14 @@ pull-request checklist. Changes are tracked in [CHANGELOG.md](CHANGELOG.md).
   publisher = {Hugging Face},
   url       = {https://huggingface.co/datasets/dadm022/determ_lerobot_rgb_depth_vla}
 }
+
+@dataset{dadm022_lerobot_rgb_vla_2026,
+  author    = {dadm022},
+  title     = {{LeRobot RGB VLA Dataset}},
+  year      = {2026},
+  publisher = {Hugging Face},
+  url       = {https://huggingface.co/datasets/dadm022/lerobot_rgb_vla}
+}
 ```
 
 ## License
