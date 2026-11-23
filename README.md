@@ -516,5 +516,5 @@ purposes permitted by this license requires separate permission from the copyrig
 
 | Dataset | License |
 | --- | --- |
-| [RGB-D dataset](https://huggingface.co/datasets/dadm022/determ_lerobot_rgb_depth_vla) | Apache-2.0 |
-| [RGB dataset](https://huggingface.co/datasets/dadm022/lerobot_rgb_vla) | MIT |
+| [RGB-D dataset](https://huggingface.co/datasets/dadm022/determ_lerobot_rgb_depth_vla) | [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) |
+| [RGB dataset](https://huggingface.co/datasets/dadm022/lerobot_rgb_vla) | [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) |
